@@ -1,0 +1,125 @@
+version: "3.9"
+
+services:
+
+  nginx:
+    image: nginx:alpine
+    container_name: enon-nginx
+
+    ports:
+      - "8080:80"
+
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+
+    depends_on:
+      - api
+
+    restart: unless-stopped
+
+    networks:
+      - rag-network
+
+  api:
+    build:
+      context: ./rag-server
+
+    container_name: enon-api
+
+    expose:
+      - "8000"
+
+    env_file:
+      - .env
+
+    volumes:
+      - ./rag-server:/app
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+      redis:
+        condition: service_started
+
+    restart: unless-stopped
+
+    networks:
+      - rag-network
+
+  postgres:
+    image: postgres:16-alpine
+
+    container_name: enon-postgres
+
+    environment:
+      POSTGRES_DB: rag
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+
+    ports:
+      - "5432"
+
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+    restart: unless-stopped
+
+    networks:
+      - rag-network
+
+  redis:
+    image: redis:7-alpine
+
+    container_name: enon-redis
+
+    ports:
+      - "6379"
+
+    restart: unless-stopped
+
+    networks:
+      - rag-network
+
+  worker:
+    build:
+      context: ./rag-server
+
+    container_name: enon-worker
+
+    command: celery -A orchestration.celery_tasks worker --loglevel=info
+
+    env_file:
+      - .env
+
+    environment:
+      OLLAMA_BASE_URL: http://host.docker.internal:11434
+
+    volumes:
+      - ./rag-server:/app
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+      
+    restart: unless-stopped
+
+    networks:
+      - rag-network
+
+volumes:
+  postgres-data:
+
+networks:
+  rag-network:
