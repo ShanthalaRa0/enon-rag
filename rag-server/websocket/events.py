@@ -34,7 +34,7 @@ def publish_event(
 
 
     redis_client.publish(
-        EVENT_CHANNEL,
+        f"workflow:{workflow_id}",
         json.dumps(payload),
     )
 

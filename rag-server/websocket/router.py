@@ -1,20 +1,12 @@
-# websocket/router.py
-
-import json
 import logging
 
-from fastapi import (
-    APIRouter,
-    WebSocket,
-    WebSocketDisconnect,
-)
-
+from fastapi import APIRouter
+from fastapi import WebSocket
+from fastapi import WebSocketDisconnect
 
 from websocket.manager import manager
 
-
 logger = logging.getLogger(__name__)
-
 
 router = APIRouter()
 
@@ -32,33 +24,30 @@ async def workflow_listener(
         websocket,
     )
 
-
     try:
 
         while True:
 
-            data = await websocket.receive_text()
+            #
+            # Keep socket alive
+            #
 
-            logger.info(
-                f"[WS MESSAGE] {workflow_id}: {data}"
-            )
-
+            await websocket.receive_text()
 
     except WebSocketDisconnect:
 
-        manager.disconnect(
+        await manager.disconnect(
             workflow_id,
             websocket,
         )
 
-
-    except Exception as e:
+    except Exception:
 
         logger.exception(
             "[WS ERROR]"
         )
 
-        manager.disconnect(
+        await manager.disconnect(
             workflow_id,
             websocket,
         )

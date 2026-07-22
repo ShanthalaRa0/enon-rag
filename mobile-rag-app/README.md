@@ -15,6 +15,16 @@ This is an [Expo](https://expo.dev) project created with [`create-expo-app`](htt
    ```bash
    npx expo start
    ```
+3. Open the app on the Android emulator:
+   Press a
+
+4. Reload the app:
+   Press r
+
+5. Verify the emulator is connected:
+   ```bash
+   adb devices
+   ```
 
 In the output, you'll find options to open the app in a
 
