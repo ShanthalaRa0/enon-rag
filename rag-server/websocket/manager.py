@@ -111,7 +111,15 @@ class WorkflowConnectionManager:
         message: dict,
     ):
 
-        dead = []
+        logger.info(
+            f"[BROADCAST] {workflow_id}"
+        )
+
+        logger.info(
+            f"[CLIENTS] {len(self.connections.get(workflow_id, []))}"
+        )
+
+        dead_connections = []
 
         for websocket in self.connections.get(
             workflow_id,
@@ -120,15 +128,21 @@ class WorkflowConnectionManager:
 
             try:
 
-                await websocket.send_json(
-                    message
-                )
+                await websocket.send_json(message)
+
+                logger.info("[MESSAGE SENT]")
 
             except Exception:
 
-                dead.append(websocket)
+                logger.exception(
+                    "[SEND FAILED]"
+                )
 
-        for websocket in dead:
+                dead_connections.append(
+                    websocket
+                )
+
+        for websocket in dead_connections:
 
             await self.disconnect(
                 workflow_id,

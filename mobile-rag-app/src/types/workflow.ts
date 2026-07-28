@@ -1,13 +1,29 @@
-import { WorkflowStage } from "@/config/workflow";
+export interface WorkflowEvent {
 
-export interface WorkflowMessage {
-  workflow_id: string;
+    workflow_id: string;
 
-  stage: WorkflowStage;
+    type:
+        | "PIPELINE_STARTED"
+        | "STAGE_UPDATE"
+        | "PIPELINE_COMPLETED"
+        | "PIPELINE_FAILED";
 
-  progress: number;
 
-  status: "RUNNING" | "SUCCESS" | "FAILED";
+    status:
+        | "IDLE"
+        | "RUNNING"
+        | "COMPLETED"
+        | "FAILED";
 
-  message: string;
+
+    stage: string;
+
+
+    progress: number;
+
+
+    message: string;
+
+
+    error?: string;
 }

@@ -6,14 +6,14 @@ from fastapi import WebSocketDisconnect
 
 from websocket.manager import manager
 
+
 logger = logging.getLogger(__name__)
+
 
 router = APIRouter()
 
 
-@router.websocket(
-    "/ws/workflow/{workflow_id}"
-)
+@router.websocket("/ws/workflow/{workflow_id}")
 async def workflow_listener(
     websocket: WebSocket,
     workflow_id: str,
@@ -28,24 +28,24 @@ async def workflow_listener(
 
         while True:
 
-            #
-            # Keep socket alive
-            #
-
             await websocket.receive_text()
+
 
     except WebSocketDisconnect:
 
-        await manager.disconnect(
-            workflow_id,
-            websocket,
+        logger.info(
+            f"[WS DISCONNECTED] {workflow_id}"
         )
+
 
     except Exception:
 
         logger.exception(
             "[WS ERROR]"
         )
+
+
+    finally:
 
         await manager.disconnect(
             workflow_id,

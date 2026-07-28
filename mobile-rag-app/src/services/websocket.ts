@@ -1,19 +1,23 @@
 import { WS_URL } from "@/config/api";
 
-export interface WorkflowEvent {
-  workflow_id: string;
-
-  type:
-    | "STAGE_UPDATE"
-    | "PIPELINE_COMPLETED"
-    | "PIPELINE_FAILED";
-
-  stage?: string;
-
-  progress?: number;
-
-  error?: string;
-}
+export type WorkflowEvent =
+  | {
+      workflow_id: string;
+      type: "STAGE_UPDATE";
+      stage: string;
+      progress: number;
+    }
+  | {
+      workflow_id: string;
+      type: "PIPELINE_COMPLETED";
+      stage: "FINISHED";
+      progress: 100;
+    }
+  | {
+      workflow_id: string;
+      type: "PIPELINE_FAILED";
+      error: string;
+    };
 
 export type WorkflowEventHandler = (
   event: WorkflowEvent

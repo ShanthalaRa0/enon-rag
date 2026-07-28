@@ -3,7 +3,7 @@ import json
 import logging
 import os
 
-import redis
+import redis.asyncio as redis
 
 logger = logging.getLogger(__name__)
 
@@ -18,28 +18,46 @@ async def listen(
     workflow_id: str,
     callback,
 ):
+    """
+    Listen for Redis Pub/Sub events for a workflow
+    and forward them to the supplied callback.
+    """
 
     channel = f"workflow:{workflow_id}"
 
+    logger.info(
+        f"[LISTENER STARTED] {workflow_id}"
+    )
+
     pubsub = redis_client.pubsub()
 
-    pubsub.subscribe(channel)
+    await pubsub.subscribe(channel)
 
-    logger.info(f"[REDIS SUBSCRIBED] {channel}")
+    logger.info(
+        f"[REDIS SUBSCRIBED] {channel}"
+    )
 
     try:
 
         while True:
 
-            message = pubsub.get_message(
+            message = await pubsub.get_message(
                 ignore_subscribe_messages=True,
                 timeout=1,
             )
 
             if message:
 
+                logger.info(
+                    f"[REDIS RECEIVED] {message['data']}"
+                )
+
                 payload = json.loads(
                     message["data"]
+                )
+
+                logger.info(
+                    "[CALLBACK]"
                 )
 
                 await callback(payload)
@@ -49,11 +67,11 @@ async def listen(
     except asyncio.CancelledError:
 
         logger.info(
-            f"[REDIS STOPPED] {workflow_id}"
+            f"[LISTENER STOPPED] {workflow_id}"
         )
 
     finally:
 
-        pubsub.unsubscribe(channel)
+        await pubsub.unsubscribe(channel)
 
-        pubsub.close()
+        await pubsub.close()

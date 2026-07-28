@@ -19,6 +19,7 @@ from orchestration.pipeline_status import (
 )
 
 from orchestration.websocket_events import (
+    emit_pipeline_started,
     emit_pipeline_stage,
     emit_pipeline_completed,
     emit_pipeline_failed,
@@ -74,6 +75,7 @@ def extract_document_task(
             workflow_id=workflow_id,
             stage="TEXT_EXTRACTION",
             progress=20,
+            message="Extracting document text...",
         )
 
         # -------------------------------------------------
@@ -108,6 +110,8 @@ def extract_document_task(
 
         emit_pipeline_failed(
             workflow_id=workflow_id,
+            stage="TEXT_EXTRACTION",
+            progress=20,
             error=str(e),
         )
 
@@ -151,6 +155,7 @@ def chunk_document_task(
             workflow_id=workflow_id,
             stage="CHUNKING",
             progress=40,
+            message="Splitting document into chunks...",
         )
 
         # -------------------------------------------------
@@ -192,6 +197,8 @@ def chunk_document_task(
 
         emit_pipeline_failed(
             workflow_id=workflow_id,
+            stage="CHUNKING",
+            progress=40,
             error=str(e),
         )
 
@@ -235,6 +242,7 @@ def generate_embeddings_task(
             workflow_id=workflow_id,
             stage="EMBEDDING",
             progress=70,
+            message="Generating embeddings...",
         )
 
         # -------------------------------------------------
@@ -270,6 +278,8 @@ def generate_embeddings_task(
 
         emit_pipeline_failed(
             workflow_id=workflow_id,
+            stage="EMBEDDING",
+            progress=70,
             error=str(e),
         )
 
@@ -314,6 +324,7 @@ def store_vectors_task(
             workflow_id=workflow_id,
             stage="VECTOR_STORE",
             progress=90,
+            message="Storing vectors in database...",
         )
 
         # -------------------------------------------------
@@ -350,6 +361,8 @@ def store_vectors_task(
 
         emit_pipeline_failed(
             workflow_id=workflow_id,
+            stage="VECTOR_STORE",
+            progress=90,
             error=str(e),
         )
 

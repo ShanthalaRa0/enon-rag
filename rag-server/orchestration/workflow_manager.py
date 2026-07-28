@@ -1,8 +1,6 @@
-# orchestration/workflow_manager.py
-
 import logging
+
 from uuid import uuid4
-from pathlib import Path
 from datetime import datetime
 
 from orchestration.pipeline_router import route_pipeline
@@ -13,14 +11,13 @@ from orchestration.pipeline_status import (
 
 from orchestration.websocket_events import (
     emit_pipeline_started,
-    emit_pipeline_completed,
     emit_pipeline_failed,
-    emit_pipeline_stage,
 )
 
 from orchestration.celery_tasks import (
     extract_document_task,
 )
+
 
 logger = logging.getLogger(__name__)
 
@@ -31,16 +28,6 @@ def start_ingestion_workflow(
     file_hash: str,
     page_number: int,
 ):
-    """
-    Main orchestration entrypoint.
-
-    Responsibilities:
-    - create workflow
-    - initialize states
-    - choose pipeline
-    - trigger async tasks
-    - publish events
-    """
 
     workflow_id = str(uuid4())
 
@@ -50,9 +37,9 @@ def start_ingestion_workflow(
 
     try:
 
-        # -------------------------------------------------
-        # Determine pipeline
-        # -------------------------------------------------
+        # -----------------------------
+        # Select pipeline
+        # -----------------------------
 
         pipeline = route_pipeline(file_path)
 
@@ -62,9 +49,10 @@ def start_ingestion_workflow(
             f"[PIPELINE ROUTED] {pipeline_name}"
         )
 
-        # -------------------------------------------------
-        # Initial workflow state
-        # -------------------------------------------------
+
+        # -----------------------------
+        # Initial status
+        # -----------------------------
 
         update_pipeline_status(
             workflow_id=workflow_id,
@@ -75,38 +63,19 @@ def start_ingestion_workflow(
             created_at=str(datetime.utcnow()),
         )
 
-        # -------------------------------------------------
-        # Emit started event
-        # -------------------------------------------------
+
+        # -----------------------------
+        # Notify websocket clients
+        # -----------------------------
 
         emit_pipeline_started(
-            workflow_id=workflow_id,
-            data={
-                "pipeline": pipeline_name,
-                "file": source_file,
-            }
+            workflow_id
         )
 
-        # -------------------------------------------------
-        # Update extraction stage
-        # -------------------------------------------------
 
-        update_pipeline_status(
-            workflow_id=workflow_id,
-            status="RUNNING",
-            stage="TEXT_EXTRACTION",
-            progress=10,
-        )
-
-        emit_pipeline_stage(
-            workflow_id=workflow_id,
-            stage="TEXT_EXTRACTION",
-            progress=10,
-        )
-
-        # -------------------------------------------------
-        # Trigger async extraction task
-        # -------------------------------------------------
+        # -----------------------------
+        # Start celery workflow
+        # -----------------------------
 
         extract_document_task.delay(
             workflow_id=workflow_id,
@@ -117,19 +86,18 @@ def start_ingestion_workflow(
             pipeline_name=pipeline_name,
         )
 
+
         logger.info(
             f"[TASK SUBMITTED] workflow_id={workflow_id}"
         )
 
-        # -------------------------------------------------
-        # Return immediately
-        # -------------------------------------------------
 
         return {
             "workflow_id": workflow_id,
             "status": "QUEUED",
             "pipeline": pipeline_name,
         }
+
 
     except Exception as e:
 
@@ -145,8 +113,11 @@ def start_ingestion_workflow(
             error=str(e),
         )
 
+
         emit_pipeline_failed(
             workflow_id=workflow_id,
+            stage="WORKFLOW_INITIALIZATION",
+            progress=0,
             error=str(e),
         )
 

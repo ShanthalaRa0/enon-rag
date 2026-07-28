@@ -1,17 +1,15 @@
-# orchestration/websocket_events.py
-import os
-import json
-import logging
+from workflow.event_factory import (
+    stage_event,
+    completed_event,
+    failed_event,
+    started_event,
+)
+
 
 import redis
+import json
+import os
 
-
-logger = logging.getLogger(__name__)
-
-
-# =========================================================
-# Redis Pub/Sub Client
-# =========================================================
 
 redis_client = redis.Redis(
     host=os.getenv("REDIS_HOST", "redis"),
@@ -20,109 +18,81 @@ redis_client = redis.Redis(
 )
 
 
-# =========================================================
-# Event Publisher
-# =========================================================
 
-def publish_event(
-    workflow_id: str,
-    event: str,
-    data: dict = None,
-):
-    """
-    Publish workflow event to Redis Pub/Sub.
-    """
+def publish(event):
 
-    try:
+    redis_client.publish(
 
-        payload = {
-            "workflow_id": workflow_id,
-            "event": event,
-            "data": data or {},
-        }
+        f"workflow:{event.workflow_id}",
 
-        redis_client.publish(
-            f"workflow:{workflow_id}",
-            json.dumps(payload)
-        )
+        event.model_dump_json(),
 
-        logger.info(
-            f"[EVENT PUBLISHED] "
-            f"{workflow_id} "
-            f"{event}"
-        )
-
-    except Exception as e:
-
-        logger.exception(
-            "[EVENT PUBLISH FAILED]"
-        )
-
-        raise e
+    )
 
 
-# =========================================================
-# Workflow Started Event
-# =========================================================
 
 def emit_pipeline_started(
     workflow_id: str,
-    data: dict = None,
 ):
-    publish_event(
-        workflow_id=workflow_id,
-        event="PIPELINE_STARTED",
-        data=data,
+
+    publish(
+
+        started_event(
+            workflow_id
+        )
+
     )
 
 
-# =========================================================
-# Workflow Stage Event
-# =========================================================
 
 def emit_pipeline_stage(
-    workflow_id: str,
-    stage: str,
-    progress: int,
+    workflow_id,
+    stage,
+    progress,
+    message,
 ):
-    publish_event(
-        workflow_id=workflow_id,
-        event="PIPELINE_STAGE",
-        data={
-            "stage": stage,
-            "progress": progress,
-        }
+
+    publish(
+
+        stage_event(
+            workflow_id,
+            stage,
+            progress,
+            message,
+        )
+
     )
 
 
-# =========================================================
-# Workflow Completed Event
-# =========================================================
 
 def emit_pipeline_completed(
-    workflow_id: str,
+    workflow_id,
 ):
-    publish_event(
-        workflow_id=workflow_id,
-        event="PIPELINE_COMPLETED",
-        data={
-            "progress": 100
-        }
+
+    publish(
+
+        completed_event(
+            workflow_id
+        )
+
     )
 
 
-# =========================================================
-# Workflow Failed Event
-# =========================================================
 
 def emit_pipeline_failed(
-    workflow_id: str,
-    error: str,
+    workflow_id,
+    stage,
+    progress,
+    error,
 ):
-    publish_event(
-        workflow_id=workflow_id,
-        event="PIPELINE_FAILED",
-        data={
-            "error": error
-        }
+
+    publish(
+
+        failed_event(
+            workflow_id,
+            stage,
+            progress,
+            error,
+        )
+
     )
