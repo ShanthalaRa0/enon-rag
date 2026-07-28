@@ -6,14 +6,15 @@ import shutil
 import logging
 
 from orchestration.workflow_manager import start_ingestion_workflow
-from orchestration.pipeline_router import route_pipeline
+
+from config.paths import ORIGINAL_UPLOAD_DIR
 
 router = APIRouter()
 
 logger = logging.getLogger(__name__)
 
-UPLOAD_DIR = Path("uploads")
-UPLOAD_DIR.mkdir(exist_ok=True)
+# UPLOAD_DIR = Path("uploads")
+# UPLOAD_DIR.mkdir(exist_ok=True)
 
 
 @router.post("/upload")
@@ -27,7 +28,9 @@ async def upload_document(file: UploadFile = File(...)):
 
         stored_file_name = f"{job_id}{file_extension}"
 
-        file_path = UPLOAD_DIR / stored_file_name
+        file_path = ORIGINAL_UPLOAD_DIR / stored_file_name
+
+        logger.info(f"Saving uploaded file to: {file_path}")
 
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)

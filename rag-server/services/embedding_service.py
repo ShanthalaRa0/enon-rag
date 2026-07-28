@@ -1,19 +1,13 @@
 # services/embedding_service.py
 
-import os
 import logging
 
-from dotenv import load_dotenv
+from langchain_ollama import OllamaEmbeddings
 
-from langchain_ollama import (
-    OllamaEmbeddings,
+from config.settings import (
+    EMBED_MODEL,
+    OLLAMA_BASE_URL,
 )
-
-from langchain_core.documents import (
-    Document,
-)
-
-load_dotenv()
 
 logger = logging.getLogger(__name__)
 
@@ -23,16 +17,9 @@ logger = logging.getLogger(__name__)
 # =========================================================
 
 embeddings_model = OllamaEmbeddings(
-    model=os.getenv(
-        "EMBED_MODEL",
-        "mxbai-embed-large",
-    ),
-    base_url=os.getenv(
-        "OLLAMA_BASE_URL",
-        "http://localhost:11434"
-    )
+    model=EMBED_MODEL,
+    base_url=OLLAMA_BASE_URL,
 )
-
 
 # =========================================================
 # Return Model Instance

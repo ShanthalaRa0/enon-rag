@@ -12,3 +12,4 @@ mobile-rag-app/dist/
 rag-server/.venv/
 rag-server/__pycache__/
 rag-server/uploads/
+rag-server/vector_store/

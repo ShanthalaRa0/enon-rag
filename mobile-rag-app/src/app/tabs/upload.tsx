@@ -198,6 +198,7 @@ export default function UploadScreen() {
 
       {selectedFile && (
         <>
+          {/* File details */}
           <View style={styles.card}>
             <Text style={styles.label}>
               Name
@@ -228,93 +229,86 @@ export default function UploadScreen() {
             </Text>
           </View>
 
+          {/* Upload button */}
           <UploadButton
-            title={
-              uploading
-                ? "Uploading..."
-                : "Upload"
-            }
+            title={uploading ? "Uploading..." : "Upload"}
             onPress={uploadFile}
             disabled={uploading}
           />
+
+          {/* Workflow ID */}
+          {workflowId && (
+            <View style={styles.card}>
+              <Text style={styles.label}>
+                Workflow ID
+              </Text>
+
+              <Text style={styles.value}>
+                {workflowId}
+              </Text>
+            </View>
+          )}
+
+          {/* Status */}
+          <View style={styles.card}>
+            <Text style={styles.label}>
+              Workflow Status
+            </Text>
+
+            <Text style={styles.value}>
+              {status}
+            </Text>
+
+            <Text style={styles.label}>
+              Current Stage
+            </Text>
+
+            <Text style={styles.value}>
+              {currentStage}
+            </Text>
+
+            <Text style={styles.label}>
+              Progress
+            </Text>
+
+            <Text style={styles.value}>
+              {progress}%
+            </Text>
+          </View>
+
+          {/* Events */}
+          <View style={styles.card}>
+            <Text style={styles.label}>
+              Live Events
+            </Text>
+
+            {events.length === 0 && (
+              <Text style={styles.value}>
+                Waiting for workflow updates...
+              </Text>
+            )}
+
+            {events.map((event, index) => (
+              <Text
+                key={index}
+                style={styles.value}
+              >
+                {JSON.stringify(event)}
+              </Text>
+            ))}
+          </View>
+
+          {/* Current event */}
+          <View>
+            {event && (
+              <>
+                <Text>{event.type}</Text>
+                <Text>{event.workflow_id}%</Text>
+              </>
+            )}
+          </View>
         </>
       )}
-
-      {workflowId && (
-        <View style={styles.card}>
-          <Text style={styles.label}>
-            Workflow ID
-          </Text>
-
-          <Text style={styles.value}>
-            {workflowId}
-          </Text>
-        </View>
-      )}
-
-      <View style={styles.card}>
-        <Text style={styles.label}>
-          Workflow Status
-        </Text>
-
-        <Text style={styles.value}>
-          {status}
-        </Text>
-
-        <Text style={styles.label}>
-          Current Stage
-        </Text>
-
-        <Text style={styles.value}>
-          {currentStage}
-        </Text>
-
-        <Text style={styles.label}>
-          Progress
-        </Text>
-
-        <Text style={styles.value}>
-          {progress}%
-        </Text>
-      </View>
-
-      <View style={styles.card}>
-        <Text style={styles.label}>
-          Live Events
-        </Text>
-
-        {events.length === 0 && (
-          <Text style={styles.value}>
-            Waiting for workflow updates...
-          </Text>
-        )}
-
-        {events.map((event, index) => (
-          <Text
-            key={index}
-            style={styles.value}
-          >
-            {JSON.stringify(event)}
-          </Text>
-        ))}
-      </View>
-      <View>
-        {
-          event && (
-            <Text>
-                {event.message}
-            </Text>
-          )
-        }
-        {
-          event && (
-            <Text>
-                {event.progress}%
-            </Text>
-
-          )
-        }
-      </View>
     </ScrollView>
   );
 }

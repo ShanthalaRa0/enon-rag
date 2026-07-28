@@ -3,16 +3,15 @@ import os
 
 from dotenv import load_dotenv
 
-from langchain_core.documents import (
-    Document,
-)
+from langchain_core.documents import Document
 
 from langchain_text_splitters import (
     RecursiveCharacterTextSplitter,
 )
-
-load_dotenv()
-
+from config.settings import (
+    CHUNK_SIZE,
+    CHUNK_OVERLAP,
+)
 
 def clean_text(text: str) -> str:
     """
@@ -54,18 +53,8 @@ def chunk_document(
     """
 
     splitter = RecursiveCharacterTextSplitter(
-        chunk_size=int(
-            os.getenv(
-                "CHUNK_SIZE",
-                300,
-            )
-        ),
-        chunk_overlap=int(
-            os.getenv(
-                "CHUNK_OVERLAP",
-                80,
-            )
-        ),
+        chunk_size=CHUNK_SIZE,
+        chunk_overlap=CHUNK_OVERLAP,
     )
 
     return splitter.split_documents(
