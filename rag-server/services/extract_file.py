@@ -12,11 +12,6 @@ IMAGE_EXTENSIONS = {
     ".png",
     ".jpg",
     ".jpeg",
-    ".pdf",
-    ".docx",
-    ".pptx",
-    ".xlsx",
-    ".xls",
 }
 
 

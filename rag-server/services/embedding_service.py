@@ -58,7 +58,7 @@ def generate_embeddings(
     )
 
     logger.info(
-        f"[EMBEDDING COMPLETED]"
+        "[EMBEDDING COMPLETED]"
     )
 
     return vectors

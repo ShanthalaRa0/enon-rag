@@ -50,17 +50,16 @@ def load_db():
     )
 
 
-def hybrid_search(query, top_k=5):
-    """
-    Hybrid retrieval pipeline.
-
-    1. BM25 Search
-    2. Fallback Semantic Search
-    """
+def hybrid_search(
+    query,
+    top_k=5,
+):
 
     db = load_db()
 
-    print("\nUsing BM25 search...")
+    print(
+        "\n[SEARCH] BM25..."
+    )
 
     bm25_results = bm25_search(
         query=query,
@@ -71,16 +70,18 @@ def hybrid_search(query, top_k=5):
     if bm25_results:
 
         print(
-            f"BM25 returned "
+            f"[SEARCH] BM25 returned "
             f"{len(bm25_results)} results"
         )
 
-        return bm25_results
-
-    print("No BM25 matches found.")
+        return bm25_results[:top_k]
 
     print(
-        "Falling back to semantic search..."
+        "[SEARCH] No BM25 matches."
+    )
+
+    print(
+        "[SEARCH] Falling back to semantic search..."
     )
 
     semantic_results = semantic_search(
@@ -89,9 +90,4 @@ def hybrid_search(query, top_k=5):
         k=top_k,
     )
 
-    print(
-        f"Semantic search returned "
-        f"{len(semantic_results)} results"
-    )
-
-    return semantic_results
+    return semantic_results[:top_k]

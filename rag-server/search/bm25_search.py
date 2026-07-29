@@ -1,21 +1,22 @@
-# search/bm25_search.py
+import os
 
-from gevent import os
+from dotenv import load_dotenv
 from rank_bm25 import BM25Okapi
 from fugashi import GenericTagger
 
+load_dotenv()
 
-tagger = GenericTagger(f"-r {os.getenv('MECABRC', '/etc/mecabrc')}")
+tagger = GenericTagger(
+    f"-r {os.getenv('MECABRC', '/etc/mecabrc')}"
+)
 
 
 def tokenize(text: str):
-    """
-    Japanese-aware tokenizer.
-    """
 
     return [
-        word.surface
+        word.surface.lower()
         for word in tagger(text)
+        if word.surface.strip()
     ]
 
 
@@ -24,28 +25,31 @@ def bm25_search(
     db,
     k=5,
 ):
-    """
-    BM25 keyword/token search.
-
-    High precision retrieval.
-    """
 
     docs = list(
         db.docstore._dict.values()
     )
 
+    if not docs:
+        return []
+
     corpus = [
         tokenize(
-            d.page_content.lower()
+            doc.page_content
         )
-        for d in docs
+        for doc in docs
     ]
 
-    bm25 = BM25Okapi(corpus)
+    bm25 = BM25Okapi(
+        corpus
+    )
 
     tokenized_query = tokenize(
         query.lower()
     )
+
+    if not tokenized_query:
+        return []
 
     scores = bm25.get_scores(
         tokenized_query
@@ -59,24 +63,37 @@ def bm25_search(
 
     results = []
 
-    for doc, score in ranked[:k]:
+    for doc, score in ranked:
 
-        # Ignore poor matches
         if score <= 0:
             continue
 
+        metadata = doc.metadata or {}
+
         results.append(
             {
-                "text": doc.page_content,
-                "source": doc.metadata.get(
-                    "source"
+                "filename": metadata.get(
+                    "source_file"
                 ),
-                "page": doc.metadata.get(
+                "workflow_id": metadata.get(
+                    "workflow_id"
+                ),
+                "page": metadata.get(
                     "page"
+                ),
+                "file_type": metadata.get(
+                    "file_type"
+                ),
+                "language": metadata.get(
+                    "language"
                 ),
                 "score": float(score),
                 "search_type": "bm25",
+                "text": doc.page_content,
             }
         )
+
+        if len(results) >= k:
+            break
 
     return results

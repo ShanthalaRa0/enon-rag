@@ -133,7 +133,10 @@ def extract_document_task(
 def chunk_document_task(
     self,
     workflow_id: str,
-    extracted_text: str,
+    original_text: str,
+    translated_text: str | None,
+    original_language: str,
+    translated_language: str | None,
     source_file: str,
     file_hash: str,
     page_number: int,
@@ -156,30 +159,108 @@ def chunk_document_task(
             workflow_id=workflow_id,
             stage=WorkflowStage.CHUNKING,
             progress=50,
-            message="Splitting document into chunks...",
+            message="Splitting original and translated text into chunks...",
         )
 
         # -------------------------------------------------
-        # Chunk text
+        # Original chunks
         # -------------------------------------------------
 
-        documents = chunk_text(
-            extracted_text
+        original_documents = chunk_text(
+            text=original_text,
+            source_file=source_file,
+            file_hash=file_hash,
+            page_number=page_number,
+            workflow_id=workflow_id,
+            file_type="original",
+            language=original_language,
         )
-        chunks = [
-            {
+
+        original_chunks = []
+
+        for doc in original_documents:
+
+            metadata = dict(
+                doc.metadata or {}
+            )
+
+            metadata.update({
+                "workflow_id": str(workflow_id),
+                "source_file": source_file,
+                "file_hash": file_hash,
+                "page": metadata.get(
+                    "page",
+                    page_number,
+                ),
+                "file_type": "original",
+                "language": original_language,
+            })
+
+            original_chunks.append({
                 "page_content": doc.page_content,
-                "metadata": doc.metadata,
-            }
-            for doc in documents
-        ]
+                "metadata": metadata,
+            })
+
+        # -------------------------------------------------
+        # Translated chunks
+        # -------------------------------------------------
+
+        translated_chunks = []
+
+        if translated_text:
+
+            translated_documents = chunk_text(
+                text=translated_text,
+                source_file=source_file,
+                file_hash=file_hash,
+                page_number=page_number,
+                workflow_id=workflow_id,
+                file_type="translated",
+                language=translated_language,
+            )
+
+            for doc in translated_documents:
+
+                metadata = dict(
+                    doc.metadata or {}
+                )
+
+                metadata.update({
+                    "workflow_id": str(workflow_id),
+                    "source_file": source_file,
+                    "file_hash": file_hash,
+                    "page": metadata.get(
+                        "page",
+                        page_number,
+                    ),
+                    "file_type": "translated",
+                    "language": translated_language,
+                })
+
+                translated_chunks.append({
+                    "page_content": doc.page_content,
+                    "metadata": metadata,
+                })
+
+        # -------------------------------------------------
+        # Combine
+        # -------------------------------------------------
+
+        chunks = (
+            original_chunks
+            + translated_chunks
+        )
 
         logger.info(
-            f"[CHUNKING COMPLETED] {workflow_id}"
+            f"[CHUNKING COMPLETED] "
+            f"{workflow_id} | "
+            f"original={len(original_chunks)} "
+            f"translated={len(translated_chunks)} "
+            f"total={len(chunks)}"
         )
 
         # -------------------------------------------------
-        # Trigger embeddings
+        # Generate embeddings
         # -------------------------------------------------
 
         generate_embeddings_task.delay(
@@ -253,9 +334,23 @@ def translate_document_task(
             f"[TRANSLATION COMPLETED] {workflow_id}"
         )
 
+        # -------------------------------------------------
+        # Chunk original + translated documents
+        # -------------------------------------------------
+
         chunk_document_task.delay(
             workflow_id=workflow_id,
-            extracted_text=result["text"],
+            original_text=extracted_text,
+            translated_text=(
+                result["text"]
+                if result["translated"]
+                else None
+            ),
+            original_language=result["language"],
+            translated_language=
+                result["target_language"] 
+                if result["translated"] 
+                else None,
             source_file=source_file,
             file_hash=file_hash,
             page_number=page_number,

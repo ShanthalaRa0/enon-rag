@@ -85,14 +85,14 @@ def store_embeddings(
         for chunk in chunks:
 
             document_metadata = {
+                **(metadata or {}),
                 **chunk.get(
                     "metadata",
                     {}
                 ),
-                **(metadata or {}),
             }
 
-
+            file_hash = None
             # Used for duplicate detection
             if metadata:
 
@@ -101,7 +101,9 @@ def store_embeddings(
                         "file_hash"
                     )
                 )
-
+            # Ensure hash exists for duplicate detection
+            if file_hash:
+                document_metadata["hash"] = file_hash
 
             documents.append(
                 Document(

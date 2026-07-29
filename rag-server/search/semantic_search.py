@@ -6,11 +6,6 @@ def semantic_search(
     k=5,
     threshold=0.75,
 ):
-    """
-    Semantic vector similarity search.
-
-    Lower score = better match.
-    """
 
     results = db.similarity_search_with_score(
         query,
@@ -21,20 +16,32 @@ def semantic_search(
 
     for doc, score in results:
 
-        if score < threshold:
+        if score >= threshold:
+            continue
 
-            filtered.append(
-                {
-                    "text": doc.page_content,
-                    "source": doc.metadata.get(
-                        "source"
-                    ),
-                    "page": doc.metadata.get(
-                        "page"
-                    ),
-                    "score": float(score),
-                    "search_type": "semantic",
-                }
-            )
+        metadata = doc.metadata or {}
 
-    return filtered
+        filtered.append(
+            {
+                "filename": metadata.get(
+                    "source_file"
+                ),
+                "workflow_id": metadata.get(
+                    "workflow_id"
+                ),
+                "page": metadata.get(
+                    "page"
+                ),
+                "file_type": metadata.get(
+                    "file_type"
+                ),
+                "language": metadata.get(
+                    "language"
+                ),
+                "score": float(score),
+                "search_type": "semantic",
+                "text": doc.page_content,
+            }
+        )
+
+    return filtered[:k]
