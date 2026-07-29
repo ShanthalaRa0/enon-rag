@@ -15,10 +15,22 @@ import { Colors } from "@/theme";
 
 type MessageRole = "user" | "assistant";
 
+type SearchResult = {
+  filename: string;
+  workflow_id: string | null;
+  page: number | null;
+  file_type: string | null;
+  language: string | null;
+  score: number;
+  search_type: string;
+  text: string;
+};
+
 type ChatMessage = {
   id: string;
   role: MessageRole;
-  content: string;
+  content?: string;
+  results?: SearchResult[];
 };
 
 export default function ChatScreen() {
@@ -51,6 +63,13 @@ export default function ChatScreen() {
     // Clear input
     setMessage("");
 
+    // Wait for FlatList to render the new question
+    setTimeout(() => {
+      flatListRef.current?.scrollToEnd({
+        animated: true,
+      });
+    }, 100);
+
     setIsLoading(true);
 
     try {
@@ -64,9 +83,10 @@ export default function ChatScreen() {
         id: `${Date.now()}-assistant`,
         role: "assistant",
         content:
-          response.length > 0
-            ? response[0].text
-            : "I couldn't find relevant information.",
+          response.length === 0
+            ? "I couldn't find relevant information."
+            : undefined,
+        results: response.length > 0 ? response : undefined,   
       };
 
       setMessages((previous) => [
@@ -128,9 +148,102 @@ export default function ChatScreen() {
               : styles.assistantMessageContent,
           ]}
         >
-          <Text style={styles.messageText}>
-            {item.content}
-          </Text>
+          {/* Normal text message */}
+          {item.content && (
+            <Text style={styles.messageText}>
+              {item.content}
+            </Text>
+          )}
+
+          {/* Search results */}
+          {item.results &&
+            item.results.map((result, index) => (
+              <View
+                key={`${item.id}-${index}`}
+                style={styles.resultCard}
+              >
+                <Text style={styles.resultTitle}>
+                  Result {index + 1}
+                </Text>
+
+                <View style={styles.resultDetails}>
+                  <View style={styles.resultRow}>
+                    <Text style={styles.resultLabel}>
+                      Filename
+                    </Text>
+
+                    <Text
+                      style={styles.resultValue}
+                      numberOfLines={2}
+                    >
+                      {result.filename || "Unknown"}
+                    </Text>
+                  </View>
+
+                  <View style={styles.resultRow}>
+                    <Text style={styles.resultLabel}>
+                      Page
+                    </Text>
+
+                    <Text style={styles.resultValue}>
+                      {result.page ?? "Unknown"}
+                    </Text>
+                  </View>
+
+                  <View style={styles.resultRow}>
+                    <Text style={styles.resultLabel}>
+                      File type
+                    </Text>
+
+                    <Text style={styles.resultValue}>
+                      {result.file_type || "Unknown"}
+                    </Text>
+                  </View>
+
+                  <View style={styles.resultRow}>
+                    <Text style={styles.resultLabel}>
+                      Language
+                    </Text>
+
+                    <Text style={styles.resultValue}>
+                      {result.language || "Unknown"}
+                    </Text>
+                  </View>
+
+                  <View style={styles.resultRow}>
+                    <Text style={styles.resultLabel}>
+                      Score
+                    </Text>
+
+                    <Text style={styles.resultValue}>
+                      {result.score.toFixed(2)}
+                    </Text>
+                  </View>
+
+                  <View style={styles.resultRow}>
+                    <Text style={styles.resultLabel}>
+                      Search type
+                    </Text>
+
+                    <Text style={styles.resultValue}>
+                      {result.search_type?.toUpperCase() ||
+                        "Unknown"}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Matched text */}
+                <View style={styles.matchedTextContainer}>
+                  <Text style={styles.matchedTextLabel}>
+                    Matched text
+                  </Text>
+
+                  <Text style={styles.matchedText}>
+                    {result.text}
+                  </Text>
+                </View>
+              </View>
+            ))}
         </View>
       </View>
     );
@@ -195,11 +308,6 @@ export default function ChatScreen() {
             }
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
-            onContentSizeChange={() =>
-              flatListRef.current?.scrollToEnd({
-                animated: true,
-              })
-            }
           />
         )}
       </View>
@@ -432,5 +540,63 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: "#999",
     marginTop: 7,
+  },
+  resultCard: {
+    width: "100%",
+    backgroundColor: "#f8f8f8",
+    borderWidth: 1,
+    borderColor: "#e5e5e5",
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 12,
+  },
+
+  resultTitle: {
+    fontSize: 17,
+    fontWeight: "700",
+    color:  "#222222",
+    marginBottom: 12,
+  },
+
+  resultDetails: {
+    gap: 7,
+  },
+
+  resultRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+  },
+
+  resultLabel: {
+    width: 100,
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#666",
+  },
+
+  resultValue: {
+    flex: 1,
+    fontSize: 14,
+    color: "#222222",
+  },
+
+  matchedTextContainer: {
+    marginTop: 14,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#e5e5e5",
+  },
+
+  matchedTextLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#666",
+    marginBottom: 6,
+  },
+
+  matchedText: {
+    fontSize: 14,
+    lineHeight: 21,
+    color: "#333333",
   },
 });
