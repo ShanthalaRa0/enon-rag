@@ -23,32 +23,15 @@ logger = logging.getLogger(__name__)
 
 
 def start_ingestion_workflow(
+    workflow_id: str,
     file_path: str,
     source_file: str,
     file_hash: str,
     page_number: int,
 ):
 
-    workflow_id = str(uuid4())
-
-    logger.info(
-        f"[WORKFLOW STARTED] workflow_id={workflow_id}"
-    )
 
     try:
-
-        # -----------------------------
-        # Select pipeline
-        # -----------------------------
-
-        pipeline = route_pipeline(file_path)
-
-        pipeline_name = pipeline.__name__
-
-        logger.info(
-            f"[PIPELINE ROUTED] {pipeline_name}"
-        )
-
 
         # -----------------------------
         # Initial status
@@ -83,7 +66,6 @@ def start_ingestion_workflow(
             source_file=source_file,
             file_hash=file_hash,
             page_number=page_number,
-            pipeline_name=pipeline_name,
         )
 
 
@@ -95,7 +77,6 @@ def start_ingestion_workflow(
         return {
             "workflow_id": workflow_id,
             "status": "QUEUED",
-            "pipeline": pipeline_name,
         }
 
 

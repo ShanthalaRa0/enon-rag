@@ -1,4 +1,4 @@
-#  enums
+# enums
 
 from enum import Enum
 
@@ -18,14 +18,20 @@ class WorkflowEventType(str, Enum):
 
 
 class WorkflowStage(str, Enum):
-    UPLOAD = "UPLOAD"
+    IDLE = "IDLE"
 
-    TEXT_EXTRACTION = "TEXT_EXTRACTION"
+    UPLOADING = "UPLOADING"
+
+    EXTRACTING = "EXTRACTING"
+
+    TRANSLATING = "TRANSLATING"
 
     CHUNKING = "CHUNKING"
 
     EMBEDDING = "EMBEDDING"
 
-    VECTOR_STORE = "VECTOR_STORE"
+    STORING = "STORING"
 
-    FINISHED = "FINISHED"
+    COMPLETE = "COMPLETE"
+
+    FAILED = "FAILED"

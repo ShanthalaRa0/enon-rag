@@ -31,13 +31,3 @@ def route_pipeline(file_path: str):
         raise ValueError(f"Unsupported file type: {ext}")
     return ingest_document
 
-# def route_pipeline(file_path: str):
-#     ext = Path(file_path or "").suffix.lower()
-
-#     if not ext:
-#         raise ValueError(f"Cannot detect file extension from: {file_path}")
-
-#     if ext not in SUPPORTED_EXTENSIONS:
-#         raise ValueError(f"Unsupported file type: {ext}")
-
-#     return ingest_document

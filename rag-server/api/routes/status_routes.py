@@ -8,12 +8,12 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
-@router.get("/pipeline/status/{job_id}")
-async def pipeline_status(job_id: str):
+@router.get("/pipeline/status/{workflow_id}")
+async def pipeline_status(workflow_id: str):
 
     try:
 
-        status = get_pipeline_status(job_id)
+        status = get_pipeline_status(workflow_id)
 
         return status
 

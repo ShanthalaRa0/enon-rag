@@ -2,7 +2,12 @@
 
 from workflow.models import WorkflowEvent
 
-from workflow.event_types import *
+from workflow.event_types import (
+    WorkflowStage,
+    WorkflowEventType,
+    WorkflowStatus,
+)
+
 
 def started_event(
     workflow_id: str,
@@ -16,13 +21,14 @@ def started_event(
 
         status=WorkflowStatus.RUNNING,
 
-        stage=WorkflowStage.UPLOAD,
+        stage=WorkflowStage.UPLOADING,
 
-        progress=0,
+        progress=10,
 
         message="Workflow started.",
 
     )
+
 
 def stage_event(
     workflow_id: str,
@@ -32,6 +38,7 @@ def stage_event(
 ):
 
     return WorkflowEvent(
+
         workflow_id=workflow_id,
 
         type=WorkflowEventType.STAGE_UPDATE,
@@ -43,6 +50,7 @@ def stage_event(
         progress=progress,
 
         message=message,
+
     )
 
 
@@ -51,28 +59,31 @@ def completed_event(
 ):
 
     return WorkflowEvent(
+
         workflow_id=workflow_id,
 
         type=WorkflowEventType.COMPLETED,
 
         status=WorkflowStatus.COMPLETED,
 
-        stage=WorkflowStage.FINISHED,
+        stage=WorkflowStage.COMPLETE,
 
         progress=100,
 
         message="Workflow completed successfully.",
+
     )
 
 
 def failed_event(
     workflow_id: str,
-    error: str,
-    stage: WorkflowStage = WorkflowStage.FINISHED,
-    progress: int = 0,
+    stage: WorkflowStage = WorkflowStage.FAILED,
+    progress: int = 100,
+    error: str = "",
 ):
 
     return WorkflowEvent(
+
         workflow_id=workflow_id,
 
         type=WorkflowEventType.FAILED,
@@ -86,4 +97,5 @@ def failed_event(
         message="Workflow failed.",
 
         error=error,
+
     )

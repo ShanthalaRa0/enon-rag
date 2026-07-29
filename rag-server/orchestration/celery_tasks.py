@@ -8,11 +8,15 @@ from pathlib import Path
 
 from services.extract_file import extract_file
 
+from services.translation_service import translation_service
+
 from services.chunking_service import chunk_text
 
 from services.embedding_service import generate_embeddings
 
 from services.vector_store_service import store_embeddings
+
+from workflow.event_types import WorkflowStage
 
 from orchestration.pipeline_status import (
     update_pipeline_status,
@@ -55,7 +59,6 @@ def extract_document_task(
     source_file: str,
     file_hash: str,
     page_number: int,
-    pipeline_name: str,
 ):
 
     try:
@@ -66,15 +69,15 @@ def extract_document_task(
 
         update_pipeline_status(
             workflow_id=workflow_id,
-            status="RUNNING",
-            stage="TEXT_EXTRACTION",
-            progress=20,
+            status="EXTRACTING",
+            stage=WorkflowStage.EXTRACTING,
+            progress=40,
         )
 
         emit_pipeline_stage(
             workflow_id=workflow_id,
-            stage="TEXT_EXTRACTION",
-            progress=20,
+            stage=WorkflowStage.EXTRACTING,
+            progress=40,
             message="Extracting document text...",
         )
 
@@ -89,12 +92,10 @@ def extract_document_task(
         logger.info(
             f"[EXTRACTION COMPLETED] {workflow_id}"
         )
-
         # -------------------------------------------------
-        # Trigger chunking
+        # Translate text
         # -------------------------------------------------
-
-        chunk_document_task.delay(
+        translate_document_task.delay(
             workflow_id=workflow_id,
             extracted_text=extracted_text,
             source_file=source_file,
@@ -110,8 +111,8 @@ def extract_document_task(
 
         emit_pipeline_failed(
             workflow_id=workflow_id,
-            stage="TEXT_EXTRACTION",
-            progress=20,
+            stage=WorkflowStage.EXTRACTING,
+            progress=40,
             error=str(e),
         )
 
@@ -146,15 +147,15 @@ def chunk_document_task(
 
         update_pipeline_status(
             workflow_id=workflow_id,
-            status="RUNNING",
-            stage="CHUNKING",
-            progress=40,
+            status="CHUNKING",
+            stage=WorkflowStage.CHUNKING,
+            progress=50,
         )
 
         emit_pipeline_stage(
             workflow_id=workflow_id,
-            stage="CHUNKING",
-            progress=40,
+            stage=WorkflowStage.CHUNKING,
+            progress=50,
             message="Splitting document into chunks...",
         )
 
@@ -197,8 +198,8 @@ def chunk_document_task(
 
         emit_pipeline_failed(
             workflow_id=workflow_id,
-            stage="CHUNKING",
-            progress=40,
+            stage=WorkflowStage.CHUNKING,
+            progress=50,
             error=str(e),
         )
 
@@ -207,7 +208,76 @@ def chunk_document_task(
             countdown=5,
         )
 
+# =========================================================
+# Translation Task
+# =========================================================
+@celery_app.task(
+    bind=True,
+    max_retries=3,
+)
+def translate_document_task(
+    self,
+    workflow_id: str,
+    extracted_text: str,
+    source_file: str,
+    file_hash: str,
+    page_number: int,
+):
 
+    try:
+
+        logger.info(
+            f"[TRANSLATION STARTED] {workflow_id}"
+        )
+
+        update_pipeline_status(
+            workflow_id=workflow_id,
+            status="TRANSLATING",
+            stage=WorkflowStage.TRANSLATING,
+            progress=25,
+        )
+
+        emit_pipeline_stage(
+            workflow_id=workflow_id,
+            stage=WorkflowStage.TRANSLATING,
+            progress=25,
+            message="Detecting language and translating if required...",
+        )
+
+        result = translation_service.process(
+            workflow_id=workflow_id,
+            text=extracted_text,
+        )
+
+        logger.info(
+            f"[TRANSLATION COMPLETED] {workflow_id}"
+        )
+
+        chunk_document_task.delay(
+            workflow_id=workflow_id,
+            extracted_text=result["text"],
+            source_file=source_file,
+            file_hash=file_hash,
+            page_number=page_number,
+        )
+
+    except Exception as e:
+
+        logger.exception(
+            "[TRANSLATION FAILED]"
+        )
+
+        emit_pipeline_failed(
+            workflow_id=workflow_id,
+            stage=WorkflowStage.TRANSLATING,
+            progress=25,
+            error=str(e),
+        )
+
+        raise self.retry(
+            exc=e,
+            countdown=5,
+        )
 # =========================================================
 # Embedding Task
 # =========================================================
@@ -233,15 +303,15 @@ def generate_embeddings_task(
 
         update_pipeline_status(
             workflow_id=workflow_id,
-            status="RUNNING",
-            stage="EMBEDDING",
-            progress=70,
+            status="EMBEDDING",
+            stage=WorkflowStage.EMBEDDING,
+            progress=75,
         )
 
         emit_pipeline_stage(
             workflow_id=workflow_id,
-            stage="EMBEDDING",
-            progress=70,
+            stage=WorkflowStage.EMBEDDING,
+            progress=75,
             message="Generating embeddings...",
         )
 
@@ -278,8 +348,8 @@ def generate_embeddings_task(
 
         emit_pipeline_failed(
             workflow_id=workflow_id,
-            stage="EMBEDDING",
-            progress=70,
+            stage=WorkflowStage.EMBEDDING,
+            progress=75,
             error=str(e),
         )
 
@@ -315,14 +385,14 @@ def store_vectors_task(
 
         update_pipeline_status(
             workflow_id=workflow_id,
-            status="RUNNING",
-            stage="VECTOR_STORE",
+            status="STORING",
+            stage=WorkflowStage.STORING,
             progress=90,
         )
 
         emit_pipeline_stage(
             workflow_id=workflow_id,
-            stage="VECTOR_STORE",
+            stage=WorkflowStage.STORING,
             progress=90,
             message="Storing vectors in database...",
         )
@@ -361,7 +431,7 @@ def store_vectors_task(
 
         emit_pipeline_failed(
             workflow_id=workflow_id,
-            stage="VECTOR_STORE",
+            stage=WorkflowStage.STORING,
             progress=90,
             error=str(e),
         )
@@ -388,7 +458,7 @@ def complete_workflow_task(
     update_pipeline_status(
         workflow_id=workflow_id,
         status="COMPLETED",
-        stage="FINISHED",
+        stage=WorkflowStage.COMPLETE,
         progress=100,
     )
 

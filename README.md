@@ -7,6 +7,7 @@ This project implements a Retrieval-Augmented Generation (RAG) backend using:
 - FastAPI
 - Celery
 - Redis
+- Postgres
 - Ollama
 - LangChain
 - Doclingr
@@ -133,6 +134,20 @@ Start Redis
 sudo service redis-server start
 ```
 
+Postgres Tables
+
+CREATE TABLE documents (
+    id SERIAL PRIMARY KEY,
+    workflow_id UUID NOT NULL UNIQUE,
+    original_filename VARCHAR(255) NOT NULL,
+    stored_filename VARCHAR(255) NOT NULL,
+    original_language VARCHAR(30),
+    translated BOOLEAN NOT NULL DEFAULT FALSE,
+    file_extension VARCHAR(20),
+	mime_type VARCHAR(100),
+	file_size BIGINT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
 ---
 
 # Running without Docker
@@ -259,7 +274,7 @@ curl -X POST "http://127.0.0.1:8000/query" \
          ▼                           ▼
      English                    Japanese
          │                           │
-         │                    Translate to English
+     Translate to Jap        Translate to English
          │                           │
          └─────────────┬─────────────┘
                        ▼
@@ -361,7 +376,6 @@ The API immediately returns
 {
     "status": "accepted",
     "workflow_id": "...",
-    "job_id": "...",
     "pipeline": "ingest_document"
 }
 ```
