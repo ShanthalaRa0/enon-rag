@@ -16,13 +16,12 @@ import {
 
 import UploadButton from "@/components/UploadButton";
 import { Colors } from "@/theme";
+import { DocumentPickerAsset } from "expo-document-picker";
+import { logger } from "react-native-reanimated/lib/typescript/common/logger";
 
 export default function UploadScreen() {
   const [selectedFile, setSelectedFile] =
     useState<DocumentPicker.DocumentPickerAsset | null>(null);
-
-  const [formData, setFormData] =
-    useState<FormData | null>(null);
 
   const [uploading, setUploading] =
     useState(false);
@@ -71,17 +70,17 @@ export default function UploadScreen() {
 
       setSelectedFile(file);
 
-      const data = new FormData();
+      // const data = new FormData();
 
-      data.append("file", {
-        uri: file.uri,
-        name: file.name,
-        type:
-          file.mimeType ??
-          "application/octet-stream",
-      } as any);
+      // data.append("file", {
+      //   uri: file.uri,
+      //   name: file.name,
+      //   type:
+      //     file.mimeType ??
+      //     "application/octet-stream",
+      // } as any);
 
-      setFormData(data);
+      // setFormData(data);
 
       console.log("Selected File:", file);
       console.log("FormData Ready");
@@ -99,8 +98,13 @@ export default function UploadScreen() {
   // Upload
   // -----------------------------
 
-  async function uploadFile() {
-    if (!formData) return;
+  async function uploadFile(overwrite = false) {
+     console.log("overwrite type:",typeof overwrite, overwrite);
+    if (!selectedFile) return;
+
+    const formData = createFormData(selectedFile);
+
+    console.log("Uploading file with overwrite =", overwrite);
 
     try {
       setUploading(true);
@@ -111,7 +115,7 @@ export default function UploadScreen() {
       setEvents([]);
 
       const response =
-        await uploadDocument(formData);
+        await uploadDocument(formData, overwrite);
 
       console.log(response);
 
@@ -154,8 +158,30 @@ export default function UploadScreen() {
             break;
         }
       });
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      console.log("UPLOAD ERROR:", err.response?.status, err.response?.data);
+
+      // File already exists
+      if (err.response?.status === 409) {
+        Alert.alert(
+          "File Already Exists",
+          "This file is already stored. Do you want to overwrite it?",
+          [
+            {
+              text: "Cancel",
+              style: "cancel",
+            },
+            {
+              text: "Overwrite",
+              style: "destructive",
+              onPress: () => {
+                uploadFile(true);
+              },
+            },
+          ]
+        );
+        return;
+      }
 
       Alert.alert(
         "Upload Failed",
@@ -166,6 +192,18 @@ export default function UploadScreen() {
     } finally {
       setUploading(false);
     }
+  }
+
+  function createFormData(file: DocumentPickerAsset) {
+    const fd = new FormData();
+
+    fd.append("file", {
+      uri: file.uri,
+      name: file.name,
+      type: file.mimeType ?? "application/octet-stream",
+    } as any);
+
+    return fd;
   }
 
   // -----------------------------
@@ -232,7 +270,7 @@ export default function UploadScreen() {
           {/* Upload button */}
           <UploadButton
             title={uploading ? "Uploading..." : "Upload"}
-            onPress={uploadFile}
+            onPress={() => uploadFile(false)}
             disabled={uploading}
           />
 

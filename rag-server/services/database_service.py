@@ -165,10 +165,46 @@ class DatabaseService:
                     workflow_id,
                 ),
             )
-
+        
         logger.info(
             f"[DOCUMENT DELETED] {workflow_id}"
         )
 
+    def get_document_by_filename(self,original_filename: str):
+        query = """
+            SELECT
+                id,
+                workflow_id,
+                original_filename,
+                stored_filename,
+                file_extension,
+                mime_type,
+                file_size
+            FROM documents
+            WHERE original_filename = %s
+            LIMIT 1
+        """
 
+        with self.connection.cursor() as cursor: 
+            cursor.execute(query, (original_filename,))
+            return cursor.fetchone()
+
+    # =====================================================
+    # Get All Documents
+    # =====================================================
+
+    def get_all_documents(self):
+
+        query = """
+        SELECT *
+        FROM documents
+        ORDER BY created_at DESC
+        """
+
+        with self.connection.cursor() as cursor:
+
+            cursor.execute(query)
+
+            return cursor.fetchall()
+        
 database_service = DatabaseService()

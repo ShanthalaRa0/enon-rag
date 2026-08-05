@@ -33,6 +33,11 @@ type ChatMessage = {
   results?: SearchResult[];
 };
 
+type ChatResponse = {
+  message: string;
+  results: SearchResult[];
+};
+
 export default function ChatScreen() {
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -75,7 +80,7 @@ export default function ChatScreen() {
     try {
       console.log("[CHAT] Sending question:", trimmedMessage);
 
-      const response = await sendQuestion(trimmedMessage);
+      const response: ChatResponse = await sendQuestion(trimmedMessage);
 
       console.log("[CHAT] Response:", response);
 
@@ -83,10 +88,12 @@ export default function ChatScreen() {
         id: `${Date.now()}-assistant`,
         role: "assistant",
         content:
-          response.length === 0
+          response.message === "No data exists to search"
+            ? "No documents uploaded. Please upload a document first."
+            : response.results.length === 0
             ? "I couldn't find relevant information."
             : undefined,
-        results: response.length > 0 ? response : undefined,   
+        results:  response.results.length > 0 ? response.results : undefined,   
       };
 
       setMessages((previous) => [

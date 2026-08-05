@@ -104,6 +104,8 @@ Document:
         
         output_file = TRANSLATED_UPLOAD_DIR / f"{workflow_id}.txt"
 
+        logger.info(f"[CHECK TRANSLATED FILE] {output_file}")
+
         output_file.write_text(
             translated_text,
             encoding="utf-8",

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, UploadFile, File, HTTPException
+from fastapi import APIRouter, Form, UploadFile, File, HTTPException
 from pathlib import Path
 from uuid import uuid4
 import hashlib
@@ -6,6 +6,7 @@ import shutil
 import logging
 
 from services.database_service import database_service
+from services.docdel_service import docdel_service
 from orchestration.workflow_manager import start_ingestion_workflow
 
 from config.paths import ORIGINAL_UPLOAD_DIR
@@ -19,8 +20,43 @@ logger = logging.getLogger(__name__)
 
 
 @router.post("/upload")
-async def upload_document(file: UploadFile = File(...)):
+async def upload_document(file: UploadFile = File(...), overwrite: bool = Form(False)):
 
+    logger.info(f"overwrite received on server: {overwrite}")
+
+    existing_document = database_service.get_document_by_filename(
+        file.filename
+    )
+    logger.info(f"existing_document found: {bool(existing_document)}")
+    logger.info(f"overwrite flag: {overwrite}")
+
+    if existing_document:
+        if not overwrite:
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "message": "File already exists",
+                    "filename": file.filename,
+                    "workflow_id": str(existing_document["workflow_id"]),
+                },
+            )
+        
+        # =================================================
+        # Delete old document
+        # =================================================
+
+        logger.info(
+            f"[OVERWRITE] Removing existing document: "
+            f"{existing_document['workflow_id']}"
+        )
+        docdel_service.delete_document(
+            workflow_id=str(
+                existing_document["workflow_id"]
+            ),
+            stored_filename=existing_document[
+                "stored_filename"
+            ],
+        )
     try:
 
         workflow_id = str(uuid4())

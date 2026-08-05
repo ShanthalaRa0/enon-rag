@@ -38,6 +38,9 @@ services:
       redis:
         condition: service_started
 
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
     restart: unless-stopped
 
     networks:

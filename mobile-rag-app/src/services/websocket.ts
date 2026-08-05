@@ -79,10 +79,11 @@ export class WorkflowSocket {
       onError?.(event);
     };
 
-    this.socket.onclose = () => {
-      console.log(
-        "[WebSocket] Closed"
-      );
+    this.socket.onclose = (event) => {
+      console.log("[WebSocket] Closed");
+      console.log("Code:", event.code);
+      console.log("Reason:", event.reason);
+      console.log("Clean:", event.wasClean);
 
       onClose?.();
     };
