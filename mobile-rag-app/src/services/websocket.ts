@@ -71,7 +71,7 @@ export class WorkflowSocket {
     };
 
     this.socket.onerror = (event) => {
-      console.error(
+      console.log(
         "[WebSocket] Error",
         event
       );

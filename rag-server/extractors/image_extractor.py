@@ -1,13 +1,18 @@
 
 from pathlib import Path
 
-from ollama import chat
+from ollama import Client, chat
 
+from config.settings import (
+    OLLAMA_BASE_URL,
+    OCR_MODEL,
+)
+client = Client(host=OLLAMA_BASE_URL)
 
 def image_extract(file_path: Path) -> str:
     try:
-        response = chat(
-            model="glm-ocr",
+        response = client.chat(
+            model=OCR_MODEL,
             messages=[
                 {
                     "role": "user",

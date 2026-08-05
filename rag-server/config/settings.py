@@ -2,6 +2,7 @@ from pathlib import Path
 
 # Models
 EMBED_MODEL = "mxbai-embed-large"
+OCR_MODEL = "glm-ocr"
 
 #TRANSLATION_MODEL = "qwen3.5:9b"
 TRANSLATION_MODEL = "qwen2.5:7b"
