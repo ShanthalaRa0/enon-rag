@@ -138,6 +138,7 @@ def chunk_document_task(
     original_language: str,
     translated_language: str | None,
     source_file: str,
+    translated_file: str | None,
     file_hash: str,
     page_number: int,
 ):
@@ -187,6 +188,8 @@ def chunk_document_task(
             metadata.update({
                 "workflow_id": str(workflow_id),
                 "source_file": source_file,
+                "original_filename": source_file,
+                "stored_filename": translated_file,
                 "file_hash": file_hash,
                 "page": metadata.get(
                     "page",
@@ -227,7 +230,9 @@ def chunk_document_task(
 
                 metadata.update({
                     "workflow_id": str(workflow_id),
-                    "source_file": source_file,
+                    "source_file": translated_file,
+                    "original_filename": source_file,
+                    "stored_filename": translated_file,
                     "file_hash": file_hash,
                     "page": metadata.get(
                         "page",
@@ -328,6 +333,7 @@ def translate_document_task(
         result = translation_service.process(
             workflow_id=workflow_id,
             text=extracted_text,
+            original_filename=source_file,
         )
 
         logger.info(
@@ -347,11 +353,17 @@ def translate_document_task(
                 else None
             ),
             original_language=result["language"],
-            translated_language=
-                result["target_language"] 
-                if result["translated"] 
-                else None,
+            translated_language=(
+                result["target_language"]
+                if result["translated"]
+                else None
+            ),
             source_file=source_file,
+            translated_file=(
+                Path(result["translated_file"]).name
+                if result["translated"]
+                else None
+            ),
             file_hash=file_hash,
             page_number=page_number,
         )

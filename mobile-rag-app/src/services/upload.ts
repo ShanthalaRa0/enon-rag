@@ -8,16 +8,27 @@ export async function uploadDocument(formData: FormData, overwrite: boolean) {
   console.log("formData =", formData);
    // Add exactly one value
   formData.append("overwrite", String(overwrite));
-  const response = await api.post(
-    "/upload",
-    formData,
-    {
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
-    }
-  );
+  try {
+    const response = await api.post(
+      "/upload",
+      formData,
+      // {
+      //   headers: {
+      //     "Content-Type": "multipart/form-data",
+      //   },
+      // }
+    );
+    console.log("Upload response:", response.status);
+    console.log("Upload response data:", response.data);
+  
+    return response.data;
+  } catch (error: any) {
+    console.log("UPLOAD REQUEST FAILED");
+    console.log("status:", error.response?.status);
+    console.log("data:", error.response?.data);
+    console.log("message:", error.message);
 
-  return response.data;
+    throw error;
+  }
 }
 

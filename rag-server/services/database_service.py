@@ -92,13 +92,15 @@ class DatabaseService:
         workflow_id: str,
         original_language: str,
         translated: bool,
+        stored_filename: str,
     ):
 
         query = """
         UPDATE documents
         SET
             original_language = %s,
-            translated = %s
+            translated = %s,
+            stored_filename = %s
         WHERE workflow_id = %s
         """
 
@@ -109,6 +111,7 @@ class DatabaseService:
                 (
                     original_language,
                     translated,
+                    stored_filename,
                     workflow_id,
                 ),
             )

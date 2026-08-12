@@ -75,6 +75,12 @@ def bm25_search(
                 "filename": metadata.get(
                     "source_file"
                 ),
+                "original_filename": metadata.get(
+                    "original_filename"
+                ),
+                "translated_filename": metadata.get(
+                    "stored_filename"
+                ),
                 "workflow_id": metadata.get(
                     "workflow_id"
                 ),

@@ -4,6 +4,8 @@ from services.database_service import database_service
 
 from langchain_ollama import ChatOllama
 
+from pathlib import Path
+
 from lingua import (
     Language,
     LanguageDetectorBuilder,
@@ -15,6 +17,7 @@ from config.settings import (
 )
 
 from config.paths import TRANSLATED_UPLOAD_DIR
+
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +38,7 @@ class TranslationService:
             temperature=0,
         )
 
+
     # =====================================================
     # Detect Language
     # =====================================================
@@ -50,6 +54,7 @@ class TranslationService:
             return "UNKNOWN"
 
         return language.name
+
 
     # =====================================================
     # Translate
@@ -79,6 +84,7 @@ Document:
 
 {text}
 """
+
         logger.info("[OLLAMA REQUEST START]")
 
         response = self.llm.invoke(prompt)
@@ -87,9 +93,12 @@ Document:
 
         translated_text = response.content
 
-        logger.info(f"[TRANSLATION OUTPUT] {translated_text[:200]}")
+        logger.info(
+            f"[TRANSLATION OUTPUT] {translated_text[:200]}"
+        )
 
         return translated_text
+
 
     # =====================================================
     # Save Translation
@@ -97,23 +106,43 @@ Document:
 
     def save_translation(
         self,
-        workflow_id: str,
         translated_text: str,
-    ):
-        TRANSLATED_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-        
-        output_file = TRANSLATED_UPLOAD_DIR / f"{workflow_id}.txt"
+        original_filename: str,
+        target_language: str,
+    ) -> str:
 
-        logger.info(f"[CHECK TRANSLATED FILE] {output_file}")
+        original_path = Path(original_filename)
 
-        output_file.write_text(
+        translated_filename = (
+            f"{original_path.stem}_translated_"
+            f"{target_language.lower()}.txt"
+        )
+
+        translated_path = (
+            TRANSLATED_UPLOAD_DIR /
+            translated_filename
+        )
+
+        TRANSLATED_UPLOAD_DIR.mkdir(
+            parents=True,
+            exist_ok=True
+        )
+
+        logger.info(
+            f"[CHECK TRANSLATED FILE] {translated_path}"
+        )
+
+        translated_path.write_text(
             translated_text,
             encoding="utf-8",
         )
 
         logger.info(
-            f"[TRANSLATION SAVED] {output_file}"
+            f"[TRANSLATION SAVED] {translated_path}"
         )
+
+        return str(translated_path)
+
 
     # =====================================================
     # Process
@@ -123,6 +152,7 @@ Document:
         self,
         workflow_id: str,
         text: str,
+        original_filename: str,
     ) -> dict:
 
         language = self.detect_language(text)
@@ -130,6 +160,7 @@ Document:
         logger.info(
             f"[LANGUAGE DETECTED] {language}"
         )
+
 
         if language == Language.JAPANESE.name:
 
@@ -152,38 +183,45 @@ Document:
                 "target_language": None,
                 "translated_file": None,
             }
-        # update the database to mark the document as translated
-        database_service.update_translation(
-            workflow_id=workflow_id,
-            original_language=language,
-            translated=True,
-        )
+
         logger.info(
-            f"[TRANSLATION STARTED] {language} -> {target_language}"
+            f"[TRANSLATION STARTED] "
+            f"{language} -> {target_language}"
         )
+
 
         translated = self.translate(
             text=text,
             target_language=target_language,
         )
 
-        self.save_translation(
-            workflow_id=workflow_id,
+
+        translated_file = self.save_translation(
             translated_text=translated,
+            original_filename=original_filename,
+            target_language=target_language,
         )
+
+        database_service.update_translation(
+            workflow_id=workflow_id,
+            original_language=language,
+            translated=True,
+            stored_filename=Path(translated_file).name,
+        )
+        
+
 
         logger.info(
             "[TRANSLATION COMPLETED]"
         )
+
 
         return {
             "language": language,
             "target_language": target_language,
             "text": translated,
             "translated": True,
-            "translated_file": str(
-                TRANSLATED_UPLOAD_DIR / f"{workflow_id}.txt"
-            ),
+            "translated_file": translated_file,
         }
 
 

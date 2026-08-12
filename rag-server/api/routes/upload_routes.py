@@ -50,12 +50,9 @@ async def upload_document(file: UploadFile = File(...), overwrite: bool = Form(F
             f"{existing_document['workflow_id']}"
         )
         docdel_service.delete_document(
-            workflow_id=str(
-                existing_document["workflow_id"]
-            ),
-            stored_filename=existing_document[
-                "stored_filename"
-            ],
+            workflow_id=str(existing_document["workflow_id"]),
+            original_filename=existing_document["original_filename"],
+            stored_filename=existing_document["stored_filename"]
         )
     try:
 
@@ -63,9 +60,15 @@ async def upload_document(file: UploadFile = File(...), overwrite: bool = Form(F
 
         file_extension = Path(file.filename).suffix.lower()
 
-        stored_file_name = f"{workflow_id}{file_extension}"
+        # stored_file_name = f"{workflow_id}{file_extension}"
 
-        file_path = ORIGINAL_UPLOAD_DIR / stored_file_name
+        # file_path = ORIGINAL_UPLOAD_DIR / stored_file_name
+
+        original_filename = Path(file.filename).name
+
+        file_path = ORIGINAL_UPLOAD_DIR / original_filename
+
+        stored_file_name = original_filename
 
         # Ensure upload directory exists
         file_path.parent.mkdir(parents=True, exist_ok=True)
@@ -84,7 +87,7 @@ async def upload_document(file: UploadFile = File(...), overwrite: bool = Form(F
         # Save file information to the database
         database_service.create_document(
             workflow_id=workflow_id,
-            original_filename=file.filename,
+            original_filename=original_filename,
             stored_filename=stored_file_name,
             file_extension=file_extension,
             mime_type=file.content_type,

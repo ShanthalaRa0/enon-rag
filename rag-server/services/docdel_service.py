@@ -25,7 +25,8 @@ class DocdelService:
     def delete_document(
         self,
         workflow_id: str,
-        stored_filename: str,
+        original_filename: str,
+        stored_filename: str = None,
     ):
         # 1. Delete vectors
         try:
@@ -42,7 +43,7 @@ class DocdelService:
 
         # 2. Delete original file
         original_file = (
-            self.original_upload_dir / stored_filename
+            self.original_upload_dir / original_filename
         )
 
         if original_file.exists():
@@ -53,23 +54,29 @@ class DocdelService:
             )
 
         # 3. Delete translated file
-        translated_file = (
-            self.translated_upload_dir
-            / f"{workflow_id}.txt"
-        )
+        if stored_filename:
 
-        logger.info(f"[CHECK TRANSLATED FILE] {translated_file}")
-
-        logger.info(
-            f"[EXISTS] {translated_file.exists()}"
-        )
-
-        if translated_file.exists():
-            translated_file.unlink()
+            translated_file = (
+                self.translated_upload_dir
+                / stored_filename
+            )
 
             logger.info(
-                f"[TRANSLATED FILE DELETED] {translated_file}"
+                f"[CHECK TRANSLATED FILE] {translated_file}"
             )
+
+            logger.info(
+                f"[EXISTS] {translated_file.exists()}"
+            )
+
+            if translated_file.exists():
+
+                translated_file.unlink()
+
+                logger.info(
+                    f"[TRANSLATED FILE DELETED] {translated_file}"
+                )
+
 
         # 4. Delete database record
         self.database_service.delete_document(
