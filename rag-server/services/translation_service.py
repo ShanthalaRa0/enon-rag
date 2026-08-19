@@ -67,18 +67,43 @@ class TranslationService:
     ) -> str:
 
         prompt = f"""
-You are a professional translator.
+You are a professional document translator.
 
-Translate the following document into {target_language}.
+Your task is to translate the ENTIRE document into exactly the specified target language.
 
-Rules:
+TARGET LANGUAGE: {target_language}
 
-- Translate everything.
+The target language will ALWAYS be either:
+- English
+- Japanese
+
+IMPORTANT:
+- You MUST translate the document into the TARGET LANGUAGE specified above.
+- NEVER translate into any other language.
+- Do NOT use Spanish, Chilean Spanish, Portuguese, Chinese, Korean, or any other language unless it is explicitly the TARGET LANGUAGE.
+- The TARGET LANGUAGE has absolute priority over the detected source language.
+- If the source document is already partly or entirely in the TARGET LANGUAGE, preserve that content appropriately.
+- Do NOT change the target language based on the language detected in the document.
+
+Translation rules:
+- Translate the entire document.
 - Do NOT summarize.
-- Do NOT omit information.
-- Preserve the meaning.
-- Preserve formatting where possible.
-- Return ONLY the translated text.
+- Do NOT omit any information.
+- Do NOT add information that is not present in the original document.
+- Preserve the original meaning as accurately as possible.
+- Preserve paragraphs, headings, lists, tables, numbering, and structure where possible.
+- Preserve names, numbers, dates, URLs, email addresses, and technical identifiers unless they should naturally be translated.
+- Do not explain your translation.
+- Do not mention the source language.
+- Do not mention the target language.
+- Return ONLY the translated document text.
+
+Before producing the final answer, verify:
+1. The entire document has been translated.
+2. The output is written in exactly the TARGET LANGUAGE: {target_language}.
+3. No unintended language appears in the output.
+
+TARGET LANGUAGE: {target_language}
 
 Document:
 

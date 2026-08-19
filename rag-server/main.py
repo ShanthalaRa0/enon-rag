@@ -5,6 +5,7 @@ from api.routes.query_routes import router as query_router
 from api.routes.status_routes import router as status_router
 #from api.routes.websocket_routes import router as websocket_router
 from websocket.router import router as websocket_router
+from api.routes.workspace_routes import router as workspace_router
 
 from api.middleware.logging_middleware import LoggingMiddleware
 
@@ -19,7 +20,7 @@ app.include_router(upload_router)
 app.include_router(query_router)
 app.include_router(status_router)
 app.include_router(websocket_router)
-
+app.include_router(workspace_router)
 
 @app.get("/")
 def root():

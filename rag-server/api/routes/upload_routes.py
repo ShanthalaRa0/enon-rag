@@ -5,6 +5,7 @@ import hashlib
 import shutil
 import logging
 
+from urllib.parse import unquote
 from services.database_service import database_service
 from services.docdel_service import docdel_service
 from orchestration.workflow_manager import start_ingestion_workflow
@@ -23,6 +24,7 @@ logger = logging.getLogger(__name__)
 async def upload_document(file: UploadFile = File(...), overwrite: bool = Form(False)):
 
     logger.info(f"overwrite received on server: {overwrite}")
+    file.filename = unquote(file.filename)
 
     existing_document = database_service.get_document_by_filename(
         file.filename
@@ -58,6 +60,8 @@ async def upload_document(file: UploadFile = File(...), overwrite: bool = Form(F
 
         workflow_id = str(uuid4())
 
+        logger.info(f"UPLOAD filename received: {file.filename!r}")
+
         file_extension = Path(file.filename).suffix.lower()
 
         # stored_file_name = f"{workflow_id}{file_extension}"
@@ -69,6 +73,9 @@ async def upload_document(file: UploadFile = File(...), overwrite: bool = Form(F
         file_path = ORIGINAL_UPLOAD_DIR / original_filename
 
         stored_file_name = original_filename
+
+        logger.info(f"file_path: {file_path!r}")
+        logger.info(f"Original filename: {original_filename!r}")
 
         # Ensure upload directory exists
         file_path.parent.mkdir(parents=True, exist_ok=True)
