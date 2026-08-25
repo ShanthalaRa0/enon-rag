@@ -501,3 +501,6 @@ During processing, the backend emits events such as:
 - PIPELINE_FAILED
 
 These events allow the frontend to display real-time progress without polling the server.
+
+# looking into Log file (lateset 100 lines)
+docker compose logs --tail=100 -f worker

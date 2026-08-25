@@ -9,19 +9,6 @@ export default function TextViewer() {
     filename?: string;
   }>();
 
-  let decodedContent = "";
-
-  try {
-    decodedContent = content
-      ? decodeURIComponent(content)
-      : "";
-  } catch (error) {
-    console.error("Failed to decode text content:", error);
-
-    // If it wasn't URI encoded, use it directly
-    decodedContent = content ?? "";
-  }
-
   return (
     <ScrollView
       style={[
@@ -47,7 +34,7 @@ export default function TextViewer() {
           { color: Colors.foreground },
         ]}
       >
-        {decodedContent}
+        {content ?? ""}
       </Text>
     </ScrollView>
   );

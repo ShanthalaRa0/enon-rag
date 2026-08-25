@@ -1,4 +1,5 @@
 import logging
+from urllib import response
 
 from services.database_service import database_service
 
@@ -64,7 +65,7 @@ class TranslationService:
         self,
         text: str,
         target_language: str,
-    ) -> str:
+    ) -> str:      
 
         prompt = f"""
 You are a professional document translator.
@@ -78,24 +79,16 @@ The target language will ALWAYS be either:
 - Japanese
 
 IMPORTANT:
-- You MUST translate the document into the TARGET LANGUAGE specified above.
-- NEVER translate into any other language.
-- Do NOT use Spanish, Chilean Spanish, Portuguese, Chinese, Korean, or any other language unless it is explicitly the TARGET LANGUAGE.
-- The TARGET LANGUAGE has absolute priority over the detected source language.
-- If the source document is already partly or entirely in the TARGET LANGUAGE, preserve that content appropriately.
-- Do NOT change the target language based on the language detected in the document.
-
-Translation rules:
-- Translate the entire document.
+- Output MUST be {target_language}
+- Do NOT output Chinese.
+- Do NOT output English except proper names, URLs, product names, technical identifiers, and numbers when appropriate.
 - Do NOT summarize.
-- Do NOT omit any information.
+- Do NOT omit information.
 - Do NOT add information that is not present in the original document.
 - Preserve the original meaning as accurately as possible.
 - Preserve paragraphs, headings, lists, tables, numbering, and structure where possible.
 - Preserve names, numbers, dates, URLs, email addresses, and technical identifiers unless they should naturally be translated.
 - Do not explain your translation.
-- Do not mention the source language.
-- Do not mention the target language.
 - Return ONLY the translated document text.
 
 Before producing the final answer, verify:
@@ -116,10 +109,33 @@ Document:
 
         logger.info("[OLLAMA RESPONSE RECEIVED]")
 
-        translated_text = response.content
+        logger.info(
+            f"[OLLAMA RESPONSE TYPE] {type(response)}"
+        )
 
         logger.info(
-            f"[TRANSLATION OUTPUT] {translated_text[:200]}"
+            f"[OLLAMA RESPONSE] {response}"
+        )
+
+        logger.info(
+            f"[OLLAMA RESPONSE CONTENT TYPE] "
+            f"{type(response.content)}"
+        )
+
+        logger.info(
+            f"[OLLAMA RESPONSE CONTENT LENGTH] "
+            f"{len(response.content) if response.content else 0}"
+        )
+
+        translated_text = response.content
+
+        if not translated_text or not translated_text.strip():
+            raise RuntimeError(
+                "Ollama returned an empty translation response."
+            )
+
+        logger.info(
+            f"[TRANSLATION OUTPUT] {translated_text[:500]}"
         )
 
         return translated_text

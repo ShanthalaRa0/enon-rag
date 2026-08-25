@@ -12,7 +12,7 @@ export enum WorkflowStage {
   EMBEDDING = "EMBEDDING",
 
   STORING = "STORING",
-wee2539
+
   COMPLETE = "COMPLETE",
 
   FAILED = "FAILED",
@@ -23,13 +23,13 @@ export const WorkflowProgress: Record<WorkflowStage, number> = {
 
   [WorkflowStage.UPLOADING]: 10,
 
-  [WorkflowStage.TRANSLATING]: 25,
+  [WorkflowStage.EXTRACTING]: 25,
 
-  [WorkflowStage.EXTRACTING]: 40,
+  [WorkflowStage.TRANSLATING]: 50,
 
-  [WorkflowStage.CHUNKING]: 50,
+  [WorkflowStage.CHUNKING]: 70,
 
-  [WorkflowStage.EMBEDDING]: 75,
+  [WorkflowStage.EMBEDDING]: 80,
 
   [WorkflowStage.STORING]: 90,
 

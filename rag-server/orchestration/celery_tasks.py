@@ -71,22 +71,40 @@ def extract_document_task(
             workflow_id=workflow_id,
             status="EXTRACTING",
             stage=WorkflowStage.EXTRACTING,
-            progress=40,
+            progress=10,
         )
 
-        emit_pipeline_stage(
-            workflow_id=workflow_id,
-            stage=WorkflowStage.EXTRACTING,
-            progress=40,
-            message="Extracting document text...",
-        )
+        #emit_pipeline_stage(
+        #    workflow_id=workflow_id,
+        #    stage=WorkflowStage.EXTRACTING,
+        #    progress=25,
+        #    message="Extracting document text...",
+        #)
 
         # -------------------------------------------------
         # Extract text
         # -------------------------------------------------
+        emit_pipeline_stage(
+            workflow_id=workflow_id,
+            stage=WorkflowStage.EXTRACTING,
+            progress=10,
+            message="Extracting document...",
+        )
 
         extracted_text = extract_file(
             Path(file_path)
+        )
+        emit_pipeline_stage(
+            workflow_id=workflow_id,
+            stage=WorkflowStage.EXTRACTING,
+            progress=25,
+            message="Document extraction completed.",
+        )
+        update_pipeline_status(
+            workflow_id=workflow_id,
+            status="EXTRACTING",
+            stage=WorkflowStage.EXTRACTING,
+            progress=25,
         )
 
         logger.info(
@@ -112,7 +130,7 @@ def extract_document_task(
         emit_pipeline_failed(
             workflow_id=workflow_id,
             stage=WorkflowStage.EXTRACTING,
-            progress=40,
+            progress=25,
             error=str(e),
         )
 
@@ -153,13 +171,13 @@ def chunk_document_task(
             workflow_id=workflow_id,
             status="CHUNKING",
             stage=WorkflowStage.CHUNKING,
-            progress=50,
+            progress=70,
         )
 
         emit_pipeline_stage(
             workflow_id=workflow_id,
             stage=WorkflowStage.CHUNKING,
-            progress=50,
+            progress=70,
             message="Splitting original and translated text into chunks...",
         )
 
@@ -285,7 +303,7 @@ def chunk_document_task(
         emit_pipeline_failed(
             workflow_id=workflow_id,
             stage=WorkflowStage.CHUNKING,
-            progress=50,
+            progress=70,
             error=str(e),
         )
 
@@ -320,13 +338,13 @@ def translate_document_task(
             workflow_id=workflow_id,
             status="TRANSLATING",
             stage=WorkflowStage.TRANSLATING,
-            progress=25,
+            progress=50,
         )
 
         emit_pipeline_stage(
             workflow_id=workflow_id,
             stage=WorkflowStage.TRANSLATING,
-            progress=25,
+            progress=50,
             message="Detecting language and translating if required...",
         )
 
@@ -377,7 +395,7 @@ def translate_document_task(
         emit_pipeline_failed(
             workflow_id=workflow_id,
             stage=WorkflowStage.TRANSLATING,
-            progress=25,
+            progress=50,
             error=str(e),
         )
 
@@ -412,13 +430,13 @@ def generate_embeddings_task(
             workflow_id=workflow_id,
             status="EMBEDDING",
             stage=WorkflowStage.EMBEDDING,
-            progress=75,
+            progress=80,
         )
 
         emit_pipeline_stage(
             workflow_id=workflow_id,
             stage=WorkflowStage.EMBEDDING,
-            progress=75,
+            progress=80,
             message="Generating embeddings...",
         )
 
@@ -456,7 +474,7 @@ def generate_embeddings_task(
         emit_pipeline_failed(
             workflow_id=workflow_id,
             stage=WorkflowStage.EMBEDDING,
-            progress=75,
+            progress=80,
             error=str(e),
         )
 

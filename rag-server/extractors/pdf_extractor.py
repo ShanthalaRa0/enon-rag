@@ -1,8 +1,6 @@
-
 from pathlib import Path
 
 from docling.document_converter import DocumentConverter
-
 from extractors.common import logger
 
 converter = DocumentConverter()
@@ -10,32 +8,39 @@ converter = DocumentConverter()
 
 def pdf_extract(file_path: Path) -> str:
     try:
-        logger.info("Extracting PDF text...")
+        logger.info(
+            f"[PDF EXTRACTION START] {file_path.name}"
+        )
 
         conversion_result = converter.convert(file_path)
 
-        text_parts = []
+        extracted_text = (
+            conversion_result.document.export_to_text()
+        )
 
-        total_pages = len(conversion_result.document.pages)
+        logger.info(
+            f"[PDF EXTRACTION COMPLETE] "
+            f"Characters: {len(extracted_text)}"
+        )
 
-        for i in range(total_pages):
+        logger.info(
+            f"[PDF TEXT PREVIEW] "
+            f"{extracted_text[:500]}"
+        )
 
-            page_no = i + 1
+        if not extracted_text.strip():
+            logger.warning(
+                f"[PDF EMPTY] No text extracted from "
+                f"{file_path.name}"
+            )
 
-            try:
-                page_text = conversion_result.document.export_to_text(
-                    page_no=page_no
-                )
-
-                if page_text.strip():
-                    text_parts.append(page_text.strip())
-
-            except Exception as e:
-                logger.warning(f"Failed PDF page {page_no}: {e}")
-
-        return "\n\n".join(text_parts)
+        return extracted_text.strip()
 
     except Exception as e:
+        logger.exception(
+            f"[PDF EXTRACTION FAILED] {file_path.name}"
+        )
+
         raise RuntimeError(
             f"PDF extraction failed: {e}"
         ) from e
