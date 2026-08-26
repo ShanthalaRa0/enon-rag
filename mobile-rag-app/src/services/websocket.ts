@@ -1,27 +1,76 @@
 import { WS_URL } from "@/config/api";
 
+// =========================================================
+// Workflow Event
+// =========================================================
+
 export type WorkflowEvent =
   | {
       workflow_id: string;
+
+      type: "PIPELINE_STARTED";
+
+      stage?: string;
+
+      progress?: number;
+
+      status?: "RUNNING";
+
+      message?: string;
+    }
+  | {
+      workflow_id: string;
+
       type: "STAGE_UPDATE";
+
       stage: string;
+
       progress: number;
+
+      status?: "RUNNING";
+
+      message?: string;
     }
   | {
       workflow_id: string;
+
       type: "PIPELINE_COMPLETED";
-      stage: "FINISHED";
-      progress: 100;
+
+      stage: string;
+
+      progress: number;
+
+      status?: "COMPLETED";
+
+      message?: string;
     }
   | {
       workflow_id: string;
+
       type: "PIPELINE_FAILED";
-      error: string;
+
+      stage?: string;
+
+      progress?: number;
+
+      status?: "FAILED";
+
+      message?: string;
+
+      error?: string;
     };
+
+// =========================================================
+// Event Handler
+// =========================================================
 
 export type WorkflowEventHandler = (
   event: WorkflowEvent
 ) => void;
+
+// =========================================================
+// Workflow Socket
+// =========================================================
 
 export class WorkflowSocket {
   private socket?: WebSocket;
@@ -32,15 +81,25 @@ export class WorkflowSocket {
     this.workflowId = workflowId;
   }
 
+  // =======================================================
+  // Connect
+  // =======================================================
+
   connect(
     onMessage: WorkflowEventHandler,
     onOpen?: () => void,
     onClose?: () => void,
     onError?: (error: Event) => void
   ) {
-    this.socket = new WebSocket(
-      `${WS_URL}/workflow/${this.workflowId}`
+    const url =
+      `${WS_URL}/workflow/${this.workflowId}`;
+
+    console.log(
+      "[WebSocket] Connecting:",
+      url
     );
+
+    this.socket = new WebSocket(url);
 
     this.socket.onopen = () => {
       console.log(
@@ -58,7 +117,11 @@ export class WorkflowSocket {
 
         console.log(
           "[WebSocket] Event:",
-          payload
+          JSON.stringify(
+            payload,
+            null,
+            2
+          )
         );
 
         onMessage(payload);
@@ -71,8 +134,8 @@ export class WorkflowSocket {
     };
 
     this.socket.onerror = (event) => {
-      console.log(
-        "[WebSocket] Error",
+      console.error(
+        "[WebSocket] Error:",
         event
       );
 
@@ -80,20 +143,50 @@ export class WorkflowSocket {
     };
 
     this.socket.onclose = (event) => {
-      console.log("[WebSocket] Closed");
-      console.log("Code:", event.code);
-      console.log("Reason:", event.reason);
-      console.log("Clean:", event.wasClean);
+      console.log(
+        "[WebSocket] Closed:",
+        this.workflowId
+      );
+
+      console.log(
+        "Code:",
+        event.code
+      );
+
+      console.log(
+        "Reason:",
+        event.reason
+      );
+
+      console.log(
+        "Clean:",
+        event.wasClean
+      );
 
       onClose?.();
     };
   }
 
-  disconnect() {
-    this.socket?.close();
+  // =======================================================
+  // Disconnect
+  // =======================================================
 
-    this.socket = undefined;
+  disconnect() {
+    if (this.socket) {
+      console.log(
+        "[WebSocket] Disconnecting:",
+        this.workflowId
+      );
+
+      this.socket.close();
+
+      this.socket = undefined;
+    }
   }
+
+  // =======================================================
+  // Is Connected
+  // =======================================================
 
   isConnected() {
     return (
@@ -102,8 +195,16 @@ export class WorkflowSocket {
     );
   }
 
+  // =======================================================
+  // Send
+  // =======================================================
+
   send(data: unknown) {
     if (!this.isConnected()) {
+      console.warn(
+        "[WebSocket] Cannot send. Socket is not connected."
+      );
+
       return;
     }
 

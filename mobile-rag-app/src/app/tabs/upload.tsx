@@ -1,10 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 
 import * as DocumentPicker from "expo-document-picker";
-
-import { uploadDocument } from "@/services/upload";
-import { WorkflowSocket } from "@/services/websocket";
-import { useWorkflowSocket } from "@/hooks/useWorkflowSocket";
 
 import {
   Alert,
@@ -16,43 +12,18 @@ import {
 
 import UploadButton from "@/components/UploadButton";
 import { Colors } from "@/theme";
-import { DocumentPickerAsset } from "expo-document-picker";
-import { logger } from "react-native-reanimated/lib/typescript/common/logger";
+import { useUpload } from "@/context/UploadContext";
 
 export default function UploadScreen() {
-  const [selectedFile, setSelectedFile] =
-    useState<DocumentPicker.DocumentPickerAsset | null>(null);
+  const {
+    selectedFile,
+    setSelectedFile,
+    uploadFile,
+  } = useUpload();
 
-  const [uploading, setUploading] =
-    useState(false);
-
-  const [workflowId, setWorkflowId] =
-    useState<string>();
-    
-  const event =
-        useWorkflowSocket(workflowId);
-  const socketRef =
-    useRef<WorkflowSocket | null>(null);
-
-  // -----------------------------
-  // Workflow State
-  // -----------------------------
-
-  const [status, setStatus] = useState<
-    "IDLE" | "RUNNING" | "COMPLETED" | "FAILED"
-  >("IDLE");
-
-  const [currentStage, setCurrentStage] =
-    useState("Waiting...");
-
-  const [progress, setProgress] =
-    useState<number>(0);
-
-  const [events, setEvents] = useState<any[]>([]);
-
-  // -----------------------------
-  // Pick File
-  // -----------------------------
+  // ---------------------------------------------
+  // Select file
+  // ---------------------------------------------
 
   async function pickDocument() {
     try {
@@ -68,24 +39,17 @@ export default function UploadScreen() {
 
       const file = result.assets[0];
 
+      console.log(
+        "Selected File:",
+        file
+      );
+
       setSelectedFile(file);
-
-      // const data = new FormData();
-
-      // data.append("file", {
-      //   uri: file.uri,
-      //   name: file.name,
-      //   type:
-      //     file.mimeType ??
-      //     "application/octet-stream",
-      // } as any);
-
-      // setFormData(data);
-
-      console.log("Selected File:", file);
-      console.log("FormData Ready");
     } catch (error) {
-      console.error(error);
+      console.error(
+        "Document picker error:",
+        error
+      );
 
       Alert.alert(
         "Error",
@@ -94,75 +58,48 @@ export default function UploadScreen() {
     }
   }
 
-  // -----------------------------
+  // ---------------------------------------------
   // Upload
-  // -----------------------------
+  // ---------------------------------------------
 
-  async function uploadFile(overwrite = false) {
-     console.log("overwrite type:",typeof overwrite, overwrite);
-    if (!selectedFile) return;
-
-    const formData = createFormData(selectedFile);
-
-    console.log("Uploading file with overwrite =", overwrite);
+  async function handleUpload() {
+    if (!selectedFile) {
+      return;
+    }
 
     try {
-      setUploading(true);
+      await uploadFile(
+        selectedFile,
+        false
+      );
 
-      setStatus("RUNNING");
-      setCurrentStage("Uploading...");
-      setProgress(0);
-      setEvents([]);
+      /*
+       * IMPORTANT:
+       *
+       * uploadFile() only waits until the backend
+       * creates the workflow.
+       *
+       * Celery continues processing in the backend.
+       *
+       * The Upload tab is therefore immediately
+       * ready for another file.
+       */
 
-      const response =
-        await uploadDocument(formData, overwrite);
-
-      console.log(response);
-
-      setWorkflowId(response.workflow_id);
-
-      const socket =
-        new WorkflowSocket(
-          response.workflow_id
-        );
-
-      socketRef.current = socket;
-
-      socket.connect((event) => {
-        console.log(
-          "WS EVENT:",
-          JSON.stringify(event, null, 2)
-        );
-
-        setEvents((prev) => [
-          ...prev,
-          event,
-        ]);
-
-        switch (event.type) {
-          case "STAGE_UPDATE":
-            setStatus("RUNNING");
-            setCurrentStage(event.stage);
-            setProgress(event.progress);
-            break;
-
-          case "PIPELINE_COMPLETED":
-            setStatus("COMPLETED");
-            setCurrentStage(event.stage);
-            setProgress(event.progress);
-            break;
-
-          case "PIPELINE_FAILED":
-            setStatus("FAILED");
-            Alert.alert("Workflow Failed", event.error);
-            break;
-        }
-      });
+      setSelectedFile(null);
     } catch (err: any) {
-      console.log("UPLOAD ERROR:", err.response?.status, err.response?.data);
+      console.log(
+        "UPLOAD ERROR:",
+        err?.response?.status,
+        err?.response?.data
+      );
 
+      // -----------------------------------------
       // File already exists
-      if (err.response?.status === 409) {
+      // -----------------------------------------
+
+      if (
+        err?.response?.status === 409
+      ) {
         Alert.alert(
           "File Already Exists",
           "This file is already stored. Do you want to overwrite it?",
@@ -174,12 +111,31 @@ export default function UploadScreen() {
             {
               text: "Overwrite",
               style: "destructive",
-              onPress: () => {
-                uploadFile(true);
+              onPress: async () => {
+                try {
+                  await uploadFile(
+                    selectedFile,
+                    true
+                  );
+
+                  // Ready for another file
+                  setSelectedFile(null);
+                } catch (overwriteError: any) {
+                  console.log(
+                    "OVERWRITE ERROR:",
+                    overwriteError
+                  );
+
+                  Alert.alert(
+                    "Upload Failed",
+                    "Unable to overwrite the document."
+                  );
+                }
               },
             },
           ]
         );
+
         return;
       }
 
@@ -187,38 +143,12 @@ export default function UploadScreen() {
         "Upload Failed",
         "Unable to upload document."
       );
-
-      setStatus("FAILED");
-    } finally {
-      setUploading(false);
     }
   }
 
-  function createFormData(file: DocumentPickerAsset) {
-    const fd = new FormData();
-
-    fd.append("file", {
-      uri: file.uri,
-      name: file.name,
-      type: file.mimeType ?? "application/octet-stream",
-    } as any);
-
-    return fd;
-  }
-
-  // -----------------------------
-  // Cleanup
-  // -----------------------------
-
-  useEffect(() => {
-    return () => {
-      socketRef.current?.disconnect();
-    };
-  }, []);
-
-  // -----------------------------
+  // ---------------------------------------------
   // UI
-  // -----------------------------
+  // ---------------------------------------------
 
   return (
     <ScrollView
@@ -229,14 +159,15 @@ export default function UploadScreen() {
         Upload Document
       </Text>
 
-      <UploadButton
-        title="Select File"
-        onPress={pickDocument}
-      />
+      {!selectedFile && (
+        <UploadButton
+          title="Select File"
+          onPress={pickDocument}
+        />
+      )}
 
       {selectedFile && (
         <>
-          {/* File details */}
           <View style={styles.card}>
             <Text style={styles.label}>
               Name
@@ -252,8 +183,7 @@ export default function UploadScreen() {
 
             <Text style={styles.value}>
               {(
-                (selectedFile.size ??
-                  0) / 1024
+                (selectedFile.size ?? 0) / 1024
               ).toFixed(2)}{" "}
               KB
             </Text>
@@ -263,88 +193,19 @@ export default function UploadScreen() {
             </Text>
 
             <Text style={styles.value}>
-              {selectedFile.mimeType}
+              {selectedFile.mimeType ?? "Unknown"}
             </Text>
           </View>
 
-          {/* Upload button */}
           <UploadButton
-            title={uploading ? "Uploading..." : "Upload"}
-            onPress={() => uploadFile(false)}
-            disabled={uploading}
+            title="Upload"
+            onPress={handleUpload}
           />
 
-          {/* Workflow ID */}
-          {workflowId && (
-            <View style={styles.card}>
-              <Text style={styles.label}>
-                Workflow ID
-              </Text>
-
-              <Text style={styles.value}>
-                {workflowId}
-              </Text>
-            </View>
-          )}
-
-          {/* Status */}
-          <View style={styles.card}>
-            <Text style={styles.label}>
-              Workflow Status
-            </Text>
-
-            <Text style={styles.value}>
-              {status}
-            </Text>
-
-            <Text style={styles.label}>
-              Current Stage
-            </Text>
-
-            <Text style={styles.value}>
-              {currentStage}
-            </Text>
-
-            <Text style={styles.label}>
-              Progress
-            </Text>
-
-            <Text style={styles.value}>
-              {progress}%
-            </Text>
-          </View>
-
-          {/* Events */}
-          <View style={styles.card}>
-            <Text style={styles.label}>
-              Live Events
-            </Text>
-
-            {events.length === 0 && (
-              <Text style={styles.value}>
-                Waiting for workflow updates...
-              </Text>
-            )}
-
-            {events.map((event, index) => (
-              <Text
-                key={index}
-                style={styles.value}
-              >
-                {JSON.stringify(event)}
-              </Text>
-            ))}
-          </View>
-
-          {/* Current event */}
-          <View>
-            {event && (
-              <>
-                <Text>{event.type}</Text>
-                <Text>{event.workflow_id}%</Text>
-              </>
-            )}
-          </View>
+          <UploadButton
+            title="Select Another File"
+            onPress={pickDocument}
+          />
         </>
       )}
     </ScrollView>
@@ -354,7 +215,8 @@ export default function UploadScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor:
+      Colors.background,
   },
 
   content: {
@@ -369,7 +231,8 @@ const styles = StyleSheet.create({
   },
 
   card: {
-    backgroundColor: Colors.sidebar,
+    backgroundColor:
+      Colors.sidebar,
     padding: 16,
     borderRadius: 10,
     gap: 8,
