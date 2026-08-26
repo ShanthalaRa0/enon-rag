@@ -66,6 +66,33 @@ export default function UploadScreen() {
     if (!selectedFile) {
       return;
     }
+    if (selectedFile.size === 0) {
+      Alert.alert("Invalid File", "The selected file is empty.");
+      return;
+    }
+    const fileName = selectedFile.name ?? "";
+    const extension = fileName.split(".").pop()?.toLowerCase();
+
+    const supportedExtensions = [
+      "pdf",
+      "doc",
+      "docx",
+      "xls",
+      "xlsx",
+      "ppt",
+      "pptx",
+      "jpg",
+      "jpeg",
+      "png",
+      "gif",
+    ];
+    if (!extension || !supportedExtensions.includes(extension)) {
+      Alert.alert(
+        "Unsupported File Type",
+        "Please select a PDF, Word, Excel, PowerPoint, or image file."
+      );
+      return;
+    }
 
     try {
       await uploadFile(
@@ -141,7 +168,7 @@ export default function UploadScreen() {
 
       Alert.alert(
         "Upload Failed",
-        "Unable to upload document."
+        "Unable to upload the document."
       );
     }
   }
