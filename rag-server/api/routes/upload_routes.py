@@ -74,6 +74,9 @@ async def upload_document(file: UploadFile = File(...), overwrite: bool = Form(F
 
         stored_file_name = original_filename
 
+        file_saved = False
+        database_created = False
+
         logger.info(f"file_path: {file_path!r}")
         logger.info(f"Original filename: {original_filename!r}")
 
@@ -84,6 +87,8 @@ async def upload_document(file: UploadFile = File(...), overwrite: bool = Form(F
 
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
+
+        file_saved = True
 
         await file.seek(0)
 
@@ -101,6 +106,8 @@ async def upload_document(file: UploadFile = File(...), overwrite: bool = Form(F
             file_size=len(file_bytes),
         )
 
+        database_created = True
+
         workflow = start_ingestion_workflow(
             workflow_id=workflow_id,
             file_path=str(file_path),
@@ -116,6 +123,27 @@ async def upload_document(file: UploadFile = File(...), overwrite: bool = Form(F
 
     except Exception as e:
         logger.exception("Upload failed")
+
+        if database_created:
+            try:
+                database_service.delete_document(workflow_id=workflow_id)
+            except Exception as delete_error:
+                logger.exception(f"Failed to delete database record: {delete_error}"
+                    f"{workflow_id}")
+        if file_saved:
+            try:
+                if file_path.exists():
+                    file_path.unlink()
+
+                    logger.info(
+                        f"[CLEANUP] Deleted original file: "
+                        f"{file_path}")
+
+            except Exception:
+                logger.exception(
+                    f"[CLEANUP] Failed to delete file: "
+                    f"{file_path}"
+                )        
 
         raise HTTPException(
             status_code=500,

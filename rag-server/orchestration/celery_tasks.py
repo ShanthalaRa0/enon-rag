@@ -2,7 +2,7 @@
 
 import logging
 
-from celery import Celery, chain
+from celery import Celery
 
 from pathlib import Path
 
@@ -21,9 +21,11 @@ from workflow.event_types import WorkflowStage
 from orchestration.pipeline_status import (
     update_pipeline_status,
 )
+from orchestration.workflow_cleanup import (
+    cleanup_failed_workflow,
+)
 
 from orchestration.websocket_events import (
-    emit_pipeline_started,
     emit_pipeline_stage,
     emit_pipeline_completed,
     emit_pipeline_failed,
@@ -124,14 +126,33 @@ def extract_document_task(
     except Exception as e:
 
         logger.exception(
-            "[EXTRACTION FAILED]"
+            f"[EXTRACTION FAILED] {workflow_id}"
         )
 
-        emit_pipeline_failed(
-            workflow_id=workflow_id,
-            stage=WorkflowStage.EXTRACTING,
-            progress=25,
-            error=str(e),
+        if self.request.retries >= self.max_retries:
+
+            logger.error(
+                f"[EXTRACTION FINAL FAILURE] "
+                f"{workflow_id}"
+            )
+
+            cleanup_failed_workflow(
+                workflow_id=workflow_id
+            )
+
+            emit_pipeline_failed(
+                workflow_id=workflow_id,
+                stage=WorkflowStage.EXTRACTING,
+                progress=25,
+                error=str(e),
+            )
+
+            raise
+
+        logger.warning(
+            f"[EXTRACTION RETRY] "
+            f"{workflow_id} | "
+            f"retry={self.request.retries + 1}"
         )
 
         raise self.retry(
@@ -297,14 +318,33 @@ def chunk_document_task(
     except Exception as e:
 
         logger.exception(
-            "[CHUNKING FAILED]"
+            f"[CHUNKING FAILED] {workflow_id}"
         )
 
-        emit_pipeline_failed(
-            workflow_id=workflow_id,
-            stage=WorkflowStage.CHUNKING,
-            progress=70,
-            error=str(e),
+        if self.request.retries >= self.max_retries:
+
+            logger.error(
+                f"[CHUNKING FINAL FAILURE] "
+                f"{workflow_id}"
+            )
+
+            cleanup_failed_workflow(
+                workflow_id=workflow_id
+            )
+
+            emit_pipeline_failed(
+                workflow_id=workflow_id,
+                stage=WorkflowStage.CHUNKING,
+                progress=70,
+                error=str(e),
+            )
+
+            raise
+
+        logger.warning(
+            f"[CHUNKING RETRY] "
+            f"{workflow_id} | "
+            f"retry={self.request.retries + 1}"
         )
 
         raise self.retry(
@@ -315,6 +355,10 @@ def chunk_document_task(
 # =========================================================
 # Translation Task
 # =========================================================
+@celery_app.task(
+    bind=True,
+    max_retries=3,
+)
 @celery_app.task(
     bind=True,
     max_retries=3,
@@ -358,10 +402,6 @@ def translate_document_task(
             f"[TRANSLATION COMPLETED] {workflow_id}"
         )
 
-        # -------------------------------------------------
-        # Chunk original + translated documents
-        # -------------------------------------------------
-
         chunk_document_task.delay(
             workflow_id=workflow_id,
             original_text=extracted_text,
@@ -389,14 +429,41 @@ def translate_document_task(
     except Exception as e:
 
         logger.exception(
-            "[TRANSLATION FAILED]"
+            f"[TRANSLATION FAILED] {workflow_id}"
         )
 
-        emit_pipeline_failed(
-            workflow_id=workflow_id,
-            stage=WorkflowStage.TRANSLATING,
-            progress=50,
-            error=str(e),
+        # -------------------------------------------------
+        # Final failure after all retries
+        # -------------------------------------------------
+
+        if self.request.retries >= self.max_retries:
+
+            logger.error(
+                f"[TRANSLATION FINAL FAILURE] "
+                f"{workflow_id}"
+            )
+
+            cleanup_failed_workflow(
+                workflow_id=workflow_id
+            )
+
+            emit_pipeline_failed(
+                workflow_id=workflow_id,
+                stage=WorkflowStage.TRANSLATING,
+                progress=50,
+                error=str(e),
+            )
+
+            raise
+
+        # -------------------------------------------------
+        # Retry
+        # -------------------------------------------------
+
+        logger.warning(
+            f"[TRANSLATION RETRY] "
+            f"{workflow_id} | "
+            f"retry={self.request.retries + 1}"
         )
 
         raise self.retry(
@@ -468,14 +535,33 @@ def generate_embeddings_task(
     except Exception as e:
 
         logger.exception(
-            "[EMBEDDING FAILED]"
+            f"[EMBEDDING FAILED] {workflow_id}"
         )
 
-        emit_pipeline_failed(
-            workflow_id=workflow_id,
-            stage=WorkflowStage.EMBEDDING,
-            progress=80,
-            error=str(e),
+        if self.request.retries >= self.max_retries:
+
+            logger.error(
+                f"[EMBEDDING FINAL FAILURE] "
+                f"{workflow_id}"
+            )
+
+            cleanup_failed_workflow(
+                workflow_id=workflow_id
+            )
+
+            emit_pipeline_failed(
+                workflow_id=workflow_id,
+                stage=WorkflowStage.EMBEDDING,
+                progress=80,
+                error=str(e),
+            )
+
+            raise
+
+        logger.warning(
+            f"[EMBEDDING RETRY] "
+            f"{workflow_id} | "
+            f"retry={self.request.retries + 1}"
         )
 
         raise self.retry(
@@ -530,6 +616,7 @@ def store_vectors_task(
             embeddings=embeddings,
             chunks=chunks,
             metadata={
+                "workflow_id": str(workflow_id),
                 "source_file": source_file,
                 "file_hash": file_hash,
                 "page_number": page_number,
@@ -551,14 +638,33 @@ def store_vectors_task(
     except Exception as e:
 
         logger.exception(
-            "[VECTOR STORE FAILED]"
+            f"[VECTOR STORE FAILED] {workflow_id}"
         )
 
-        emit_pipeline_failed(
-            workflow_id=workflow_id,
-            stage=WorkflowStage.STORING,
-            progress=90,
-            error=str(e),
+        if self.request.retries >= self.max_retries:
+
+            logger.error(
+                f"[VECTOR STORE FINAL FAILURE] "
+                f"{workflow_id}"
+            )
+
+            cleanup_failed_workflow(
+                workflow_id=workflow_id
+            )
+
+            emit_pipeline_failed(
+                workflow_id=workflow_id,
+                stage=WorkflowStage.STORING,
+                progress=90,
+                error=str(e),
+            )
+
+            raise
+
+        logger.warning(
+            f"[VECTOR STORE RETRY] "
+            f"{workflow_id} | "
+            f"retry={self.request.retries + 1}"
         )
 
         raise self.retry(
