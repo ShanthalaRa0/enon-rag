@@ -249,9 +249,9 @@ export default function ChatScreen() {
           onPress={() => setMessages([])}
         >
           <Ionicons
-            name="create-outline"
-            size={22}
-            color="#222"
+            name="trash"
+            size={20}
+            color="#ffffff"
           />
         </Pressable>
       </View>
@@ -359,8 +359,8 @@ const styles = StyleSheet.create({
   },
 
   headerButton: {
-    width: 40,
-    height: 40,
+    width: 20,
+    height: 20,
     alignItems: "center",
     justifyContent: "center",
   },
