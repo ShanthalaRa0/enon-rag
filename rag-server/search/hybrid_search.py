@@ -52,7 +52,7 @@ def load_db():
 
 def hybrid_search(
     query,
-    top_k=5,
+    top_k=10,
 ):
 
     db = load_db()
@@ -67,27 +67,55 @@ def hybrid_search(
         k=top_k,
     )
 
-    if bm25_results:
-
-        print(
-            f"[SEARCH] BM25 returned "
-            f"{len(bm25_results)} results"
-        )
-
-        return bm25_results[:top_k]
-
     print(
-        "[SEARCH] No BM25 matches."
+        f"[SEARCH] BM25 returned "
+        f"{len(bm25_results)} results"
     )
 
-    print(
-        "[SEARCH] Falling back to semantic search..."
-    )
-
+    # semantic search
     semantic_results = semantic_search(
         query=query,
         db=db,
         k=top_k,
     )
 
-    return semantic_results[:top_k]
+    print(
+        f"[SEARCH] Semantic returned "
+        f"{len(semantic_results)} results"
+    )
+
+    # combine results
+    combined_results = bm25_results + semantic_results
+
+    # remove duplicates
+    unique_results = []
+
+    seen = set()
+
+    for result in combined_results:
+
+        # Prefer workflow/page/text as identity
+        key = (
+            result.get("workflow_id"),
+            result.get("filename"),
+            result.get("page"),
+            result.get("text"),
+        )
+
+        if key in seen:
+            continue
+
+        seen.add(key)
+
+        unique_results.append(
+            result
+        )
+
+    print(
+        f"[SEARCH] Combined unique results: "
+        f"{len(unique_results)}"
+    )
+
+  
+    # RETURN CANDIDATES
+    return unique_results  

@@ -2,7 +2,7 @@ import api from "@/services/api";
 
 export async function sendQuestion(
   question: string,
-  topK: number = 5
+  topK: number = 10
 ) {
   console.log("Sending question...");
   console.log("question =", question);

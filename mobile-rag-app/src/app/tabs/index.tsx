@@ -16,16 +16,17 @@ import { Colors } from "@/theme";
 type MessageRole = "user" | "assistant";
 
 type SearchResult = {
-  filename: string;
+  filename: string | null;
+  original_filename?: string | null;
+  translated_filename?: string | null;
   workflow_id: string | null;
   page: number | null;
   file_type: string | null;
   language: string | null;
-  score: number;
-  search_type: string;
-  text: string;
+  // score: number;
+  // search_type: string;
+  // text: string;
 };
-
 type ChatMessage = {
   id: string;
   role: MessageRole;
@@ -35,7 +36,10 @@ type ChatMessage = {
 
 type ChatResponse = {
   message: string;
-  results: SearchResult[];
+  results: {
+    answer: string;
+    sources: SearchResult[];
+  };
 };
 
 export default function ChatScreen() {
@@ -82,18 +86,18 @@ export default function ChatScreen() {
 
       const response: ChatResponse = await sendQuestion(trimmedMessage);
 
-      console.log("[CHAT] Response:", response);
+      console.log("[CHAT] Response:", JSON.stringify(response, null, 2));
 
       const assistantMessage: ChatMessage = {
         id: `${Date.now()}-assistant`,
         role: "assistant",
         content:
-          response.message === "No data exists to search"
-            ? "No documents uploaded. Please upload a document first."
-            : response.results.length === 0
-            ? "I couldn't find relevant information."
+          response.results?.answer ||
+          "I couldn't generate an answer.",
+        results:
+          response.results?.sources?.length > 0
+            ? response.results.sources
             : undefined,
-        results:  response.results.length > 0 ? response.results : undefined,   
       };
 
       setMessages((previous) => [
@@ -216,38 +220,6 @@ export default function ChatScreen() {
                       {result.language || "Unknown"}
                     </Text>
                   </View>
-
-                  <View style={styles.resultRow}>
-                    <Text style={styles.resultLabel}>
-                      Score
-                    </Text>
-
-                    <Text style={styles.resultValue}>
-                      {result.score.toFixed(2)}
-                    </Text>
-                  </View>
-
-                  <View style={styles.resultRow}>
-                    <Text style={styles.resultLabel}>
-                      Search type
-                    </Text>
-
-                    <Text style={styles.resultValue}>
-                      {result.search_type?.toUpperCase() ||
-                        "Unknown"}
-                    </Text>
-                  </View>
-                </View>
-
-                {/* Matched text */}
-                <View style={styles.matchedTextContainer}>
-                  <Text style={styles.matchedTextLabel}>
-                    Matched text
-                  </Text>
-
-                  <Text style={styles.matchedText}>
-                    {result.text}
-                  </Text>
                 </View>
               </View>
             ))}

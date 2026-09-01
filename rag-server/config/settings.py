@@ -8,6 +8,8 @@ OCR_MODEL = "glm-ocr"
 TRANSLATION_MODEL = "qwen2.5:7b"
 # TRANSLATION_MODEL = "translategemma:12b"
 
+RAG_MODEL = "qwen2.5:7b"
+
 # Chunking
 CHUNK_SIZE = 300
 CHUNK_OVERLAP = 80
