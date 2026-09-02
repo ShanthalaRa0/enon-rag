@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 from langchain_ollama import ChatOllama
 
 from search.hybrid_search import (
+    deduplicate_results,
     hybrid_search,
 )
 
@@ -116,6 +117,13 @@ INSTRUCTIONS:
 11. Give a clear and concise answer.
 12. Identify which sources were used to construct
     the answer.
+13. Do not cite multiple sources if they contain substantially
+    the same information.
+14. Prefer the smallest set of sources necessary to support
+    the answer.
+15. If SOURCE 2 repeats SOURCE 1, do not include SOURCE 2
+    unless it provides additional information.
+16. Prefer one strong source over several redundant sources.
 Return ONLY valid JSON in this format:
 {{
     "answer": "The final answer to the user's question.",
@@ -322,10 +330,10 @@ that actually support the answer.
 # Query Documents
 def query_documents(
     question: str,
-    top_k: int = 10,
+    top_k: int = 5,
 ):
     """
-    Retrieve relevant chunks using hybrid search
+    Retrieve relevant chunks using hybrid searchgenerate_answer
     and generate the best answer using the LLM.
     """
 
@@ -337,6 +345,9 @@ def query_documents(
         results = hybrid_search(query=question,top_k=top_k)
 
         logger.info(f"[RETRIEVAL COMPLETED] " f"{len(results)} chunks")
+
+        # Remove duplicate sources
+        results = deduplicate_results(results)
 
         # LLM Answer Generation
         llm_result = generate_answer(
@@ -359,3 +370,43 @@ def query_documents(
     except Exception as e:
         logger.exception("[RETRIEVAL FAILED]")
         raise
+
+
+def deduplicate_results(results: list):
+    """
+    Remove duplicate retrieval results based on:
+    filename + page + file_type + language.
+
+    When duplicates are found, the first result is kept.
+    Since hybrid_search returns results by relevance,
+    the first result should be the highest-ranked one.
+    """
+
+    unique_results = []
+    seen = set()
+
+    for result in results:
+
+        key = (
+            result.get("filename"),
+            result.get("page"),
+            result.get("file_type"),
+            result.get("language"),
+        )
+
+        if key in seen:
+
+            logger.info(
+                "[RETRIEVAL] Removing duplicate result: "
+                f"filename={key[0]}, "
+                f"page={key[1]}, "
+                f"file_type={key[2]}, "
+                f"language={key[3]}"
+            )
+
+            continue
+
+        seen.add(key)
+        unique_results.append(result)
+
+    return unique_results

@@ -52,7 +52,7 @@ def load_db():
 
 def hybrid_search(
     query,
-    top_k=10,
+    top_k=5,
 ):
 
     db = load_db()
@@ -115,7 +115,50 @@ def hybrid_search(
         f"[SEARCH] Combined unique results: "
         f"{len(unique_results)}"
     )
-
+    unique_results = deduplicate_results(unique_results)
+    unique_results = deduplicate_by_document_page(unique_results)
   
     # RETURN CANDIDATES
     return unique_results  
+
+def deduplicate_results(results: list):
+    """
+    Remove duplicate search results based on:
+    filename + page + file_type + language.
+
+    The first result is kept.
+    """
+
+    unique_results = []
+    seen = set()
+
+    for result in results:
+
+        key = (
+            result.get("filename"),
+            result.get("page"),
+            result.get("file_type"),
+            result.get("language"),
+        )
+
+        if key in seen:
+            continue
+
+        seen.add(key)
+        unique_results.append(result)
+
+    return unique_results
+
+def deduplicate_by_document_page(results: list):
+    unique = {}
+
+    for result in results:
+        key = (
+            result.get("filename"),
+            result.get("page"),
+        )
+
+        if key not in unique:
+            unique[key] = result
+
+    return list(unique.values())
