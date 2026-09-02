@@ -85,12 +85,17 @@ export class WorkflowSocket {
   // Connect
   // =======================================================
 
-  connect(
-    onMessage: WorkflowEventHandler,
-    onOpen?: () => void,
-    onClose?: () => void,
-    onError?: (error: Event) => void
-  ) {
+  // =======================================================
+// Connect
+// =======================================================
+
+connect(
+  onMessage: WorkflowEventHandler,
+  onOpen?: () => void,
+  onClose?: () => void,
+  onError?: (error: Event) => void
+): Promise<void> {
+  return new Promise((resolve, reject) => {
     const url =
       `${WS_URL}/workflow/${this.workflowId}`;
 
@@ -108,6 +113,9 @@ export class WorkflowSocket {
       );
 
       onOpen?.();
+
+      // Resolve only after WebSocket is actually OPEN
+      resolve();
     };
 
     this.socket.onmessage = (event) => {
@@ -140,6 +148,13 @@ export class WorkflowSocket {
       );
 
       onError?.(event);
+
+      // Reject connection promise
+      reject(
+        new Error(
+          `WebSocket connection failed for workflow ${this.workflowId}`
+        )
+      );
     };
 
     this.socket.onclose = (event) => {
@@ -165,7 +180,8 @@ export class WorkflowSocket {
 
       onClose?.();
     };
-  }
+  });
+}
 
   // =======================================================
   // Disconnect

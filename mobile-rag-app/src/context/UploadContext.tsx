@@ -10,6 +10,7 @@ import { DocumentPickerAsset } from "expo-document-picker";
 
 import { uploadDocument } from "@/services/upload";
 import { WorkflowSocket } from "@/services/websocket";
+import * as Crypto from "expo-crypto";
 
 // =========================================================
 // Types
@@ -195,47 +196,18 @@ export function UploadProvider({
     file: DocumentPickerAsset,
     overwrite = false
   ): Promise<void> {
-    const formData =
-      createFormData(file);
+    const formData = createFormData(file);
 
-    console.log(
-      "[UPLOAD START]",
-      file.name
-    );
-
-    console.log(
-      "[UPLOAD OVERWRITE]",
-      overwrite
-    );
+    console.log("[UPLOAD START]", file.name);
+    console.log("[UPLOAD OVERWRITE]", overwrite);
 
     try {
-      // ---------------------------------------------------
-      // Upload file to FastAPI
-      // ---------------------------------------------------
 
-      const response =
-        await uploadDocument(
-          formData,
-          overwrite
-        );
+      // Create workflow ID
+      const workflowId = Crypto.randomUUID();
 
-      console.log(
-        "[UPLOAD RESPONSE]",
-        response
-      );
-
-      const workflowId =
-        response.workflow_id;
-
-      console.log(
-        "[WORKFLOW CREATED]",
-        workflowId
-      );
-
-      // ---------------------------------------------------
       // Create history item
-      // ---------------------------------------------------
-
+    
       const historyItem: UploadHistoryItem = {
         id: workflowId,
 
@@ -264,27 +236,14 @@ export function UploadProvider({
         ]
       );
 
-      // ---------------------------------------------------
       // Create WebSocket
-      // ---------------------------------------------------
+      const socket = new WorkflowSocket(workflowId);
 
-      const socket =
-        new WorkflowSocket(
-          workflowId
-        );
+      socketRefs.current[workflowId] = socket;
 
-      socketRefs.current[
-        workflowId
-      ] = socket;
+      console.log(`[WS CREATED] ${workflowId}`);
 
-      console.log(
-        `[WS CREATED] ${workflowId}`
-      );
-
-      // ---------------------------------------------------
       // Connect WebSocket
-      // ---------------------------------------------------
-
       socket.connect(
 
         // ON MESSAGE
@@ -324,13 +283,10 @@ export function UploadProvider({
             return;
           }
 
-          // =============================================
           // Stage update
-          // =============================================
 
           if (
-            event.type ===
-            "STAGE_UPDATE"
+            event.type === "STAGE_UPDATE"
           ) {
             console.log(
               `[STAGE UPDATE] ${workflowId}`,
@@ -354,13 +310,10 @@ export function UploadProvider({
             return;
           }
 
-          // =============================================
           // Pipeline completed
-          // =============================================
 
           if (
-            event.type ===
-            "PIPELINE_COMPLETED"
+            event.type === "PIPELINE_COMPLETED"
           ) {
             console.log(
               `[WORKFLOW COMPLETED] ${workflowId}`
@@ -390,13 +343,10 @@ export function UploadProvider({
             return;
           }
 
-          // =============================================
           // Pipeline failed
-          // =============================================
 
           if (
-            event.type ===
-            "PIPELINE_FAILED"
+            event.type === "PIPELINE_FAILED"
           ) {
             console.error(
               `[WORKFLOW FAILED] ${workflowId}`,
@@ -429,10 +379,7 @@ export function UploadProvider({
             return;
           }
 
-          // =============================================
           // Unknown event
-          // =============================================
-
           console.log(
             `[UNKNOWN WS EVENT] ${workflowId}`,
             event
@@ -460,6 +407,22 @@ export function UploadProvider({
             error
           );
         }
+      );
+
+      // WebSocket is now OPEN
+      console.log(
+        `[WS READY FOR UPLOAD] ${workflowId}`
+      );
+
+      // Upload document after WebSocket is connected
+      const response = await uploadDocument(
+        formData,
+        overwrite,
+        workflowId
+      );
+      console.log(
+        "[UPLOAD RESPONSE]",
+        response
       );
     } catch (error) {
       console.error(

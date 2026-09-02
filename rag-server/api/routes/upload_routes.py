@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Form, UploadFile, File, HTTPException
 from pathlib import Path
-from uuid import uuid4
+# from uuid import uuid4
 import hashlib
 import shutil
 import logging
@@ -21,7 +21,8 @@ logger = logging.getLogger(__name__)
 
 
 @router.post("/upload")
-async def upload_document(file: UploadFile = File(...), overwrite: bool = Form(False)):
+async def upload_document(file: UploadFile = File(...), overwrite: bool = Form(False),
+                           workflow_id: str = Form(...)):
 
     logger.info(f"overwrite received on server: {overwrite}")
     file.filename = unquote(file.filename)
@@ -58,7 +59,7 @@ async def upload_document(file: UploadFile = File(...), overwrite: bool = Form(F
         )
     try:
 
-        workflow_id = str(uuid4())
+        # workflow_id = str(uuid4())
 
         logger.info(f"UPLOAD filename received: {file.filename!r}")
 
