@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
 from api.routes.upload_routes import router as upload_router
@@ -24,6 +25,14 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="RAG Server",
     version="1.0.0"
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 app.add_middleware(LoggingMiddleware)
