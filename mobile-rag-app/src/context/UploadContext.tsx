@@ -25,6 +25,8 @@ export type UploadStatus =
 export type UploadHistoryItem = {
   id: string;
 
+  folder: string;
+
   filename: string;
 
   size?: number;
@@ -61,7 +63,8 @@ type UploadContextType = {
 
   uploadFile: (
     file: DocumentPickerAsset,
-    overwrite?: boolean
+    overwrite?: boolean,
+    folder?: string,
   ) => Promise<void>;
 };
 
@@ -194,13 +197,14 @@ export function UploadProvider({
 
   async function uploadFile(
     file: DocumentPickerAsset,
-    overwrite = false
+    overwrite = false,
+    folder: string = "documents"
   ): Promise<void> {
     const formData = createFormData(file);
 
     console.log("[UPLOAD START]", file.name);
     console.log("[UPLOAD OVERWRITE]", overwrite);
-
+    console.log("[UPLOAD FOLDER]", folder);
     try {
 
       // Create workflow ID
@@ -210,6 +214,8 @@ export function UploadProvider({
     
       const historyItem: UploadHistoryItem = {
         id: workflowId,
+
+        folder: folder,
 
         filename: file.name,
 
@@ -418,6 +424,7 @@ export function UploadProvider({
       const response = await uploadDocument(
         formData,
         overwrite,
+        folder,
         workflowId
       );
       console.log(

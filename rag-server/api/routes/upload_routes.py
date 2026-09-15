@@ -11,6 +11,7 @@ from services.docdel_service import docdel_service
 from orchestration.workflow_manager import start_ingestion_workflow
 
 from config.paths import ORIGINAL_UPLOAD_DIR
+from config.folders import ensure_folder
 
 router = APIRouter()
 
@@ -22,13 +23,19 @@ logger = logging.getLogger(__name__)
 
 @router.post("/upload")
 async def upload_document(file: UploadFile = File(...), overwrite: bool = Form(False),
-                           workflow_id: str = Form(...)):
+                           workflow_id: str = Form(...), folder: str = Form("documents"),):
 
     logger.info(f"overwrite received on server: {overwrite}")
+    # Normalize / validate folder
+    folder = ensure_folder(folder)
     file.filename = unquote(file.filename)
+    logger.info(f"filename received on server: {file.filename}")
+    logger.info(f"folder received on server: {folder}")
+    # Keep only the actual filename
+    original_filename = Path(file.filename).name
 
     existing_document = database_service.get_document_by_filename(
-        file.filename
+        file.filename , folder
     )
     logger.info(f"existing_document found: {bool(existing_document)}")
     logger.info(f"overwrite flag: {overwrite}")
@@ -40,46 +47,56 @@ async def upload_document(file: UploadFile = File(...), overwrite: bool = Form(F
                 detail={
                     "message": "File already exists",
                     "filename": file.filename,
+                    "folder": folder,
                     "workflow_id": str(existing_document["workflow_id"]),
                 },
             )
         
-        # =================================================
-        # Delete old document
-        # =================================================
 
+        # Delete old document
         logger.info(
             f"[OVERWRITE] Removing existing document: "
             f"{existing_document['workflow_id']}"
         )
         docdel_service.delete_document(
             workflow_id=str(existing_document["workflow_id"]),
+            folder=existing_document["folder"],
             original_filename=existing_document["original_filename"],
             stored_filename=existing_document["stored_filename"]
         )
+
+    file_saved = False
+    database_created = False
+
     try:
 
         # workflow_id = str(uuid4())
 
         logger.info(f"UPLOAD filename received: {file.filename!r}")
 
+         # Determine file path
         file_extension = Path(file.filename).suffix.lower()
 
-        # stored_file_name = f"{workflow_id}{file_extension}"
+        if folder == "documents":
+            file_path = (
+                ORIGINAL_UPLOAD_DIR / original_filename
+            )
 
-        # file_path = ORIGINAL_UPLOAD_DIR / stored_file_name
+            stored_filename = original_filename
 
-        original_filename = Path(file.filename).name
+        else:
+            file_path = (
+                ORIGINAL_UPLOAD_DIR
+                / folder
+                / original_filename
+            )
 
-        file_path = ORIGINAL_UPLOAD_DIR / original_filename
-
-        stored_file_name = original_filename
-
-        file_saved = False
-        database_created = False
+            stored_filename = (
+                Path(folder) / original_filename
+            ).as_posix()
 
         logger.info(f"file_path: {file_path!r}")
-        logger.info(f"Original filename: {original_filename!r}")
+        logger.info(f"stored_filename: {stored_filename!r}")
 
         # Ensure upload directory exists
         file_path.parent.mkdir(parents=True, exist_ok=True)
@@ -91,6 +108,7 @@ async def upload_document(file: UploadFile = File(...), overwrite: bool = Form(F
 
         file_saved = True
 
+        # Calculate file hash
         await file.seek(0)
 
         file_bytes = await file.read()
@@ -100,8 +118,9 @@ async def upload_document(file: UploadFile = File(...), overwrite: bool = Form(F
         # Save file information to the database
         database_service.create_document(
             workflow_id=workflow_id,
+            folder=folder,
             original_filename=original_filename,
-            stored_filename=stored_file_name,
+            stored_filename=stored_filename,
             file_extension=file_extension,
             mime_type=file.content_type,
             file_size=len(file_bytes),
@@ -115,22 +134,27 @@ async def upload_document(file: UploadFile = File(...), overwrite: bool = Form(F
             source_file=file.filename,
             file_hash=file_hash,
             page_number=1,
+            folder=folder,
         )
 
         return {
             "status": "accepted",
             "workflow_id": workflow["workflow_id"],
+            "folder": folder,
+            "filename": original_filename,
+            "stored_filename": stored_filename,
         }
 
     except Exception as e:
         logger.exception("Upload failed")
-
+        # Cleanup database record
         if database_created:
             try:
                 database_service.delete_document(workflow_id=workflow_id)
             except Exception as delete_error:
                 logger.exception(f"Failed to delete database record: {delete_error}"
                     f"{workflow_id}")
+        # Cleanup uploaded file
         if file_saved:
             try:
                 if file_path.exists():

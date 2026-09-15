@@ -20,13 +20,12 @@ type SearchResult = {
   original_filename?: string | null;
   translated_filename?: string | null;
   workflow_id: string | null;
+  folder?: string | null;
   page: number | null;
   file_type: string | null;
   language: string | null;
-  // score: number;
-  // search_type: string;
-  // text: string;
 };
+
 type ChatMessage = {
   id: string;
   role: MessageRole;
@@ -63,16 +62,13 @@ export default function ChatScreen() {
       content: trimmedMessage,
     };
 
-    // Immediately display user's message
     setMessages((previous) => [
       ...previous,
       userMessage,
     ]);
 
-    // Clear input
     setMessage("");
 
-    // Wait for FlatList to render the new question
     setTimeout(() => {
       flatListRef.current?.scrollToEnd({
         animated: true,
@@ -82,11 +78,18 @@ export default function ChatScreen() {
     setIsLoading(true);
 
     try {
-      console.log("[CHAT] Sending question:", trimmedMessage);
+      console.log(
+        "[CHAT] Sending question:",
+        trimmedMessage
+      );
 
-      const response: ChatResponse = await sendQuestion(trimmedMessage);
+      const response: ChatResponse =
+        await sendQuestion(trimmedMessage);
 
-      console.log("[CHAT] Response:", JSON.stringify(response, null, 2));
+      console.log(
+        "[CHAT] Response:",
+        JSON.stringify(response, null, 2)
+      );
 
       const assistantMessage: ChatMessage = {
         id: `${Date.now()}-assistant`,
@@ -106,7 +109,10 @@ export default function ChatScreen() {
       ]);
 
     } catch (error) {
-      console.error("[CHAT] Request failed:", error);
+      console.error(
+        "[CHAT] Request failed:",
+        error
+      );
 
       const assistantMessage: ChatMessage = {
         id: `${Date.now()}-assistant`,
@@ -159,14 +165,12 @@ export default function ChatScreen() {
               : styles.assistantMessageContent,
           ]}
         >
-          {/* Normal text message */}
           {item.content && (
             <Text style={styles.messageText}>
               {item.content}
             </Text>
           )}
 
-          {/* Search results */}
           {item.results &&
             item.results.map((result, index) => (
               <View
@@ -178,6 +182,19 @@ export default function ChatScreen() {
                 </Text>
 
                 <View style={styles.resultDetails}>
+
+                  {/* Folder */}
+                  <View style={styles.resultRow}>
+                    <Text style={styles.resultLabel}>
+                      Folder
+                    </Text>
+
+                    <Text style={styles.resultValue}>
+                      {result.folder || "documents"}
+                    </Text>
+                  </View>
+
+                  {/* Filename */}
                   <View style={styles.resultRow}>
                     <Text style={styles.resultLabel}>
                       Filename
@@ -191,6 +208,7 @@ export default function ChatScreen() {
                     </Text>
                   </View>
 
+                  {/* Page */}
                   <View style={styles.resultRow}>
                     <Text style={styles.resultLabel}>
                       Page
@@ -201,6 +219,7 @@ export default function ChatScreen() {
                     </Text>
                   </View>
 
+                  {/* File type */}
                   <View style={styles.resultRow}>
                     <Text style={styles.resultLabel}>
                       File type
@@ -211,6 +230,7 @@ export default function ChatScreen() {
                     </Text>
                   </View>
 
+                  {/* Language */}
                   <View style={styles.resultRow}>
                     <Text style={styles.resultLabel}>
                       Language
@@ -220,6 +240,7 @@ export default function ChatScreen() {
                       {result.language || "Unknown"}
                     </Text>
                   </View>
+
                 </View>
               </View>
             ))}
@@ -236,7 +257,9 @@ export default function ChatScreen() {
           ? "padding"
           : "height"
       }
-      keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
+      keyboardVerticalOffset={
+        Platform.OS === "ios" ? 90 : 0
+      }
     >
       {/* Header */}
       <View style={styles.header}>
@@ -312,10 +335,16 @@ export default function ChatScreen() {
                 styles.sendButtonDisabled,
             ]}
             onPress={sendMessage}
-            disabled={!message.trim() || isLoading}
+            disabled={
+              !message.trim() || isLoading
+            }
           >
             <Ionicons
-              name={isLoading ? "hourglass-outline" : "arrow-up"}
+              name={
+                isLoading
+                  ? "hourglass-outline"
+                  : "arrow-up"
+              }
               size={19}
               color={
                 message.trim() && !isLoading
@@ -340,8 +369,6 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
 
-  /* ---------------- Header ---------------- */
-
   header: {
     height: 56,
     paddingHorizontal: 16,
@@ -364,8 +391,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-
-  /* ---------------- Conversation ---------------- */
 
   conversation: {
     flex: 1,
@@ -425,8 +450,6 @@ const styles = StyleSheet.create({
     color: Colors.foreground,
   },
 
-  /* ---------------- Empty State ---------------- */
-
   emptyState: {
     flex: 1,
     alignItems: "center",
@@ -459,12 +482,11 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 
-  /* ---------------- Input ---------------- */
-
   inputArea: {
     paddingHorizontal: 12,
     paddingTop: 8,
-    paddingBottom: Platform.OS === "ios" ? 8 : 10,
+    paddingBottom:
+      Platform.OS === "ios" ? 8 : 10,
     backgroundColor: "#302e2e",
   },
 
@@ -520,6 +542,7 @@ const styles = StyleSheet.create({
     color: "#999",
     marginTop: 7,
   },
+
   resultCard: {
     width: "100%",
     backgroundColor: "#f8f8f8",
@@ -533,7 +556,7 @@ const styles = StyleSheet.create({
   resultTitle: {
     fontSize: 17,
     fontWeight: "700",
-    color:  "#222222",
+    color: "#222222",
     marginBottom: 12,
   },
 

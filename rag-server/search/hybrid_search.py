@@ -54,17 +54,17 @@ def hybrid_search(
     query,
     top_k=5,
 ):
-
     db = load_db()
 
-    print(
-        "\n[SEARCH] BM25..."
-    )
+    # Retrieve more candidates than the final top_k
+    candidate_k = max(top_k * 4, 20)
+
+    print("\n[SEARCH] BM25...")
 
     bm25_results = bm25_search(
         query=query,
         db=db,
-        k=top_k,
+        k=candidate_k,
     )
 
     print(
@@ -72,11 +72,12 @@ def hybrid_search(
         f"{len(bm25_results)} results"
     )
 
-    # semantic search
+    print("\n[SEARCH] Semantic...")
+
     semantic_results = semantic_search(
         query=query,
         db=db,
-        k=top_k,
+        k=candidate_k,
     )
 
     print(
@@ -84,18 +85,32 @@ def hybrid_search(
         f"{len(semantic_results)} results"
     )
 
-    # combine results
-    combined_results = bm25_results + semantic_results
+    # -------------------------------------------------
+    # Combine
+    # -------------------------------------------------
 
-    # remove duplicates
+    combined_results = (
+        bm25_results +
+        semantic_results
+    )
+
+    print(
+        f"[SEARCH] Combined results: "
+        f"{len(combined_results)}"
+    )
+
+    # -------------------------------------------------
+    # Remove exact duplicate chunks
+    # -------------------------------------------------
+
     unique_results = []
 
     seen = set()
 
     for result in combined_results:
 
-        # Prefer workflow/page/text as identity
         key = (
+            result.get("folder"),
             result.get("workflow_id"),
             result.get("filename"),
             result.get("page"),
@@ -107,19 +122,32 @@ def hybrid_search(
 
         seen.add(key)
 
-        unique_results.append(
-            result
-        )
+        unique_results.append(result)
 
     print(
-        f"[SEARCH] Combined unique results: "
+        f"[SEARCH] Unique chunks: "
         f"{len(unique_results)}"
     )
-    unique_results = deduplicate_results(unique_results)
-    unique_results = deduplicate_by_document_page(unique_results)
-  
-    # RETURN CANDIDATES
-    return unique_results  
+
+    # -------------------------------------------------
+    # Diversify folders
+    # -------------------------------------------------
+
+    unique_results = diversify_by_folder(
+        unique_results,
+        max_per_folder=top_k,
+    )
+
+    print(
+        f"[SEARCH] After folder diversification: "
+        f"{len(unique_results)}"
+    )
+
+    # -------------------------------------------------
+    # Final candidates
+    # -------------------------------------------------
+
+    return unique_results[:top_k]
 
 def deduplicate_results(results: list):
     """
@@ -135,6 +163,7 @@ def deduplicate_results(results: list):
     for result in results:
 
         key = (
+            result.get("folder"),
             result.get("filename"),
             result.get("page"),
             result.get("file_type"),
@@ -154,6 +183,7 @@ def deduplicate_by_document_page(results: list):
 
     for result in results:
         key = (
+            result.get("folder"),
             result.get("filename"),
             result.get("page"),
         )
@@ -162,3 +192,34 @@ def deduplicate_by_document_page(results: list):
             unique[key] = result
 
     return list(unique.values())
+
+from collections import defaultdict
+
+
+def diversify_by_folder(
+    results: list,
+    max_per_folder: int = 2,
+):
+    folder_counts = {}
+    diversified = []
+
+    for result in results:
+
+        folder = result.get(
+            "folder",
+            "documents",
+        )
+
+        count = folder_counts.get(
+            folder,
+            0,
+        )
+
+        if count >= max_per_folder:
+            continue
+
+        folder_counts[folder] = count + 1
+
+        diversified.append(result)
+
+    return diversified

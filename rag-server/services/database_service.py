@@ -37,6 +37,7 @@ class DatabaseService:
     def create_document(
         self,
         workflow_id: str,
+        folder: str,
         original_filename: str,
         stored_filename: str,
         file_extension: str,
@@ -48,6 +49,7 @@ class DatabaseService:
         INSERT INTO documents
         (
             workflow_id,
+            folder,
             original_filename,
             stored_filename,
             file_extension,
@@ -56,12 +58,7 @@ class DatabaseService:
         )
         VALUES
         (
-            %s,
-            %s,
-            %s,
-            %s,
-            %s,
-            %s
+            %s,%s,%s,%s,%s,%s,%s
         )
         """
 
@@ -71,6 +68,7 @@ class DatabaseService:
                 query,
                 (
                     workflow_id,
+                    folder,
                     original_filename,
                     stored_filename,
                     file_extension,
@@ -173,24 +171,37 @@ class DatabaseService:
             f"[DOCUMENT DELETED] {workflow_id}"
         )
 
-    def get_document_by_filename(self,original_filename: str):
+    def get_document_by_filename(self,original_filename: str, folder: str):
         query = """
             SELECT
                 id,
                 workflow_id,
+                folder,
                 original_filename,
                 stored_filename,
                 file_extension,
                 mime_type,
                 file_size
             FROM documents
-            WHERE original_filename = %s
+            WHERE original_filename = %s AND folder = %s
             LIMIT 1
         """
 
         with self.connection.cursor() as cursor: 
-            cursor.execute(query, (original_filename,))
-            return cursor.fetchone()
+            cursor.execute(query, (original_filename, folder))
+            row = cursor.fetchone()
+        if not row:
+            return None
+        return {
+                "id": row[0],
+                "workflow_id": row[1],
+                "folder": row[2],
+                "original_filename": row[3],
+                "stored_filename": row[4],
+                "file_extension": row[5],
+                "mime_type": row[6],
+                "file_size": row[7],
+            }
 
     # =====================================================
     # Get All Documents

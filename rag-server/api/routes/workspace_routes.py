@@ -35,23 +35,21 @@ async def workspace_route():
         )
 
 
-@router.get("/workspace/file/{filename}")
-async def workspace_file(filename: str):
+@router.get("/workspace/file/{file_path:path}")
+async def workspace_file(file_path: str):
 
-    extension = filename.rsplit(".", 1)[-1].lower().strip()
+    file_path = file_path.strip("/")
 
     logger.info(
-        f"Requested file: {filename}, extension: {extension}"
+        f"Requested workspace path: {file_path}"
     )
 
     supported_types = {
-        # Translated files
         "txt": {
             "directory": TRANSLATED_UPLOAD_DIR,
             "media_type": "text/plain",
         },
 
-        # Original documents
         "pdf": {
             "directory": ORIGINAL_UPLOAD_DIR,
             "media_type": "application/pdf",
@@ -90,7 +88,6 @@ async def workspace_file(filename: str):
             ),
         },
 
-        # Images
         "jpg": {
             "directory": ORIGINAL_UPLOAD_DIR,
             "media_type": "image/jpeg",
@@ -109,36 +106,105 @@ async def workspace_file(filename: str):
         },
     }
 
+    # ---------------------------------------------
+    # Get extension
+    # ---------------------------------------------
+
+    extension = (
+        file_path.rsplit(".", 1)[-1]
+        .lower()
+        .strip()
+    )
+
     if extension not in supported_types:
         raise HTTPException(
             status_code=400,
             detail="Unsupported file type",
         )
 
-    base_directory = supported_types[extension]["directory"].resolve()
+    # ---------------------------------------------
+    # Determine storage directory
+    # ---------------------------------------------
 
-    file_path = (base_directory / filename).resolve()
+    if file_path.startswith("originals/"):
 
-    if base_directory not in file_path.parents:
+        relative_path = file_path[
+            len("originals/"):
+        ]
+
+        base_directory = (
+            ORIGINAL_UPLOAD_DIR.resolve()
+        )
+
+    elif file_path.startswith("translated/"):
+
+        relative_path = file_path[
+            len("translated/"):
+        ]
+
+        base_directory = (
+            TRANSLATED_UPLOAD_DIR.resolve()
+        )
+
+    else:
+
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid workspace path",
+        )
+
+    # ---------------------------------------------
+    # Build actual filesystem path
+    # ---------------------------------------------
+
+    actual_path = (
+        base_directory / relative_path
+    ).resolve()
+
+    logger.info(
+        f"Resolved workspace path: {actual_path}"
+    )
+
+    # ---------------------------------------------
+    # Security check
+    # ---------------------------------------------
+
+    if not actual_path.is_relative_to(
+        base_directory
+    ):
         raise HTTPException(
             status_code=400,
             detail="Invalid file path",
         )
 
-    if not file_path.exists():
+    # ---------------------------------------------
+    # File existence
+    # ---------------------------------------------
+
+    if not actual_path.exists():
+        logger.warning(
+            f"Workspace file not found: {actual_path}"
+        )
+
         raise HTTPException(
             status_code=404,
             detail="File not found",
         )
 
-    if not file_path.is_file():
+    if not actual_path.is_file():
         raise HTTPException(
             status_code=400,
             detail="Not a file",
         )
 
+    # ---------------------------------------------
+    # Return file
+    # ---------------------------------------------
+
     return FileResponse(
-        path=file_path,
-        media_type=supported_types[extension]["media_type"],
-        filename=file_path.name,
+        path=actual_path,
+        media_type=supported_types[
+            extension
+        ]["media_type"],
+        filename=actual_path.name,
     )

@@ -1,18 +1,24 @@
 import api from "@/services/api";
 
-export async function uploadDocument(formData: FormData, overwrite: boolean,
+export async function uploadDocument(formData: FormData, overwrite: boolean,folder: string,
   workflowId: string
 ) {
   console.log("Uploading...");
   console.log("api =", api);
+  console.log("formData =", formData);
+
   console.log("workflowId =", workflowId);
+  console.log("folder =", folder);
   // Remove old values
   formData.delete("overwrite");
   formData.delete("workflow_id");
+  formData.delete("folder");
   console.log("formData =", formData);
+  console.log("folder =", folder);
    // Add exactly one value
   formData.append("overwrite", String(overwrite));
   formData.append("workflow_id", workflowId);
+  formData.append("folder", folder);
   try {
     const response = await api.post(
       "/upload",

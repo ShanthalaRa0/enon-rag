@@ -3,8 +3,8 @@
 def semantic_search(
     query,
     db,
-    k=5,
-    threshold=0.75,
+    k=50,
+    threshold=0.85
 ):
 
     results = db.similarity_search_with_score(
@@ -28,6 +28,9 @@ def semantic_search(
                 ),
                 "workflow_id": metadata.get(
                     "workflow_id"
+                ),
+                "folder": metadata.get(
+                    "folder"
                 ),
                 "page": metadata.get(
                     "page"

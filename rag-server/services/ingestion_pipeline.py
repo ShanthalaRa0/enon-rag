@@ -33,6 +33,10 @@ def ingest_document(
     source_file: str,
     file_hash: str,
     page_number: int,
+    workflow_id: str,
+    file_type: str,
+    language: str,
+    folder: str,
 ):
     """
     Full ingestion pipeline.
@@ -43,6 +47,8 @@ def ingest_document(
         ↓
     Embedding
         ↓
+    Duplicate Check
+        ↓
     Vector Storage
     """
 
@@ -50,7 +56,8 @@ def ingest_document(
 
         logger.info(
             f"[INGESTION STARTED] "
-            f"{source_file}"
+            f"source={source_file}, "
+            f"folder={folder}"
         )
 
         # -------------------------------------------------
@@ -62,6 +69,10 @@ def ingest_document(
             source_file=source_file,
             file_hash=file_hash,
             page_number=page_number,
+            workflow_id=workflow_id,
+            file_type=file_type,
+            language=language,
+            folder=folder,
         )
 
         logger.info(
@@ -94,11 +105,13 @@ def ingest_document(
         if document_exists(
             db,
             file_hash,
+            folder,
         ):
 
             logger.warning(
                 f"[DUPLICATE DOCUMENT] "
-                f"{source_file}"
+                f"source={source_file}, "
+                f"folder={folder}"
             )
 
             return
@@ -114,23 +127,29 @@ def ingest_document(
                 "file_hash": file_hash,
                 "source_file": source_file,
                 "page_number": page_number,
-            }
+                "workflow_id": workflow_id,
+                "file_type": file_type,
+                "language": language,
+                "folder": folder,
+            },
         )
 
         logger.info(
             f"[INGESTION COMPLETED] "
-            f"{source_file}"
+            f"source={source_file}, "
+            f"folder={folder}"
         )
 
         return {
             "status": "SUCCESS",
             "chunks": len(chunked_docs),
+            "folder": folder,
         }
 
-    except Exception as e:
+    except Exception:
 
         logger.exception(
             "[INGESTION FAILED]"
         )
 
-        raise e
+        raise

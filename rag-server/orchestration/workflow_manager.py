@@ -28,6 +28,7 @@ def start_ingestion_workflow(
     source_file: str,
     file_hash: str,
     page_number: int,
+    folder: str,
 ):
 
 
@@ -43,6 +44,7 @@ def start_ingestion_workflow(
             stage="INITIALIZED",
             progress=0,
             file_name=source_file,
+            folder=folder,
             created_at=str(datetime.utcnow()),
         )
 
@@ -66,6 +68,7 @@ def start_ingestion_workflow(
             source_file=source_file,
             file_hash=file_hash,
             page_number=page_number,
+            folder=folder,
         )
 
 
@@ -77,6 +80,7 @@ def start_ingestion_workflow(
         return {
             "workflow_id": workflow_id,
             "status": "QUEUED",
+            "folder": folder,
         }
 
 
@@ -91,6 +95,8 @@ def start_ingestion_workflow(
             status="FAILED",
             stage="WORKFLOW_INITIALIZATION",
             progress=0,
+            file_name=source_file,
+            folder=folder,
             error=str(e),
         )
 

@@ -7,6 +7,8 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
+  TouchableOpacity,
   View,
 } from "react-native";
 
@@ -20,6 +22,26 @@ export default function UploadScreen() {
     setSelectedFile,
     uploadFile,
   } = useUpload();
+
+  // ---------------------------------------------
+  // Folder state
+  // ---------------------------------------------
+
+  const [folders, setFolders] = useState<string[]>([
+    "documents",
+  ]);
+
+  const [selectedFolder, setSelectedFolder] =
+    useState<string>("documents");
+
+  const [showFolderSelector, setShowFolderSelector] =
+    useState(false);
+
+  const [showCreateFolder, setShowCreateFolder] =
+    useState(false);
+
+  const [newFolderName, setNewFolderName] =
+    useState("");
 
   // ---------------------------------------------
   // Select file
@@ -59,6 +81,64 @@ export default function UploadScreen() {
   }
 
   // ---------------------------------------------
+  // Create folder
+  // ---------------------------------------------
+
+  function createFolder() {
+    const folder = newFolderName.trim();
+
+    if (!folder) {
+      Alert.alert(
+        "Invalid Folder",
+        "Please enter a folder name."
+      );
+      return;
+    }
+
+    if (
+      folder === "." ||
+      folder === ".." ||
+      folder.includes("/") ||
+      folder.includes("\\")
+    ) {
+      Alert.alert(
+        "Invalid Folder",
+        "Folder name cannot contain / or \\."
+      );
+      return;
+    }
+
+    const exists = folders.some(
+      (item) =>
+        item.toLowerCase() ===
+        folder.toLowerCase()
+    );
+
+    if (exists) {
+      Alert.alert(
+        "Folder Exists",
+        "A folder with this name already exists."
+      );
+      return;
+    }
+
+    setFolders((current) => [
+      ...current,
+      folder,
+    ]);
+
+    setSelectedFolder(folder);
+    setNewFolderName("");
+    setShowCreateFolder(false);
+    setShowFolderSelector(false);
+
+    console.log(
+      "[FOLDER CREATED]",
+      folder
+    );
+  }
+
+  // ---------------------------------------------
   // Upload
   // ---------------------------------------------
 
@@ -66,12 +146,23 @@ export default function UploadScreen() {
     if (!selectedFile) {
       return;
     }
+
     if (selectedFile.size === 0) {
-      Alert.alert("Invalid File", "The selected file is empty.");
+      Alert.alert(
+        "Invalid File",
+        "The selected file is empty."
+      );
       return;
     }
-    const fileName = selectedFile.name ?? "";
-    const extension = fileName.split(".").pop()?.toLowerCase();
+
+    const fileName =
+      selectedFile.name ?? "";
+
+    const extension =
+      fileName
+        .split(".")
+        .pop()
+        ?.toLowerCase();
 
     const supportedExtensions = [
       "pdf",
@@ -86,7 +177,13 @@ export default function UploadScreen() {
       "png",
       "gif",
     ];
-    if (!extension || !supportedExtensions.includes(extension)) {
+
+    if (
+      !extension ||
+      !supportedExtensions.includes(
+        extension
+      )
+    ) {
       Alert.alert(
         "Unsupported File Type",
         "Please select a PDF, Word, Excel, PowerPoint, or image file."
@@ -95,24 +192,23 @@ export default function UploadScreen() {
     }
 
     try {
-      await uploadFile(
-        selectedFile,
-        false
+      console.log(
+        "[UPLOAD]",
+        {
+          filename: selectedFile.name,
+          folder: selectedFolder,
+        }
       );
 
-      /*
-       * IMPORTANT:
-       *
-       * uploadFile() only waits until the backend
-       * creates the workflow.
-       *
-       * Celery continues processing in the backend.
-       *
-       * The Upload tab is therefore immediately
-       * ready for another file.
-       */
+      await uploadFile(
+        selectedFile,
+        false,
+        selectedFolder
+      );
 
       setSelectedFile(null);
+      setSelectedFolder("documents");
+
     } catch (err: any) {
       console.log(
         "UPLOAD ERROR:",
@@ -129,7 +225,7 @@ export default function UploadScreen() {
       ) {
         Alert.alert(
           "File Already Exists",
-          "This file is already stored. Do you want to overwrite it?",
+          `This file already exists in "${selectedFolder}". Do you want to overwrite it?`,
           [
             {
               text: "Cancel",
@@ -142,12 +238,18 @@ export default function UploadScreen() {
                 try {
                   await uploadFile(
                     selectedFile,
-                    true
+                    true,
+                    selectedFolder
                   );
 
-                  // Ready for another file
                   setSelectedFile(null);
-                } catch (overwriteError: any) {
+                  setSelectedFolder(
+                    "documents"
+                  );
+
+                } catch (
+                  overwriteError: any
+                ) {
                   console.log(
                     "OVERWRITE ERROR:",
                     overwriteError
@@ -180,11 +282,171 @@ export default function UploadScreen() {
   return (
     <ScrollView
       style={styles.container}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={
+        styles.content
+      }
     >
       <Text style={styles.title}>
         Upload Document
       </Text>
+
+      {/* --------------------------------------- */}
+      {/* Folder selector */}
+      {/* --------------------------------------- */}
+
+      <View style={styles.folderSection}>
+        <Text style={styles.label}>
+          Folder
+        </Text>
+
+        <TouchableOpacity
+          style={styles.folderSelector}
+          onPress={() =>
+            setShowFolderSelector(
+              !showFolderSelector
+            )
+          }
+        >
+          <Text style={styles.folderValue}>
+            {selectedFolder}
+          </Text>
+
+          <Text
+            style={styles.folderArrow}
+          >
+            {showFolderSelector
+              ? "▲"
+              : "▼"}
+          </Text>
+        </TouchableOpacity>
+
+        {showFolderSelector && (
+          <View
+            style={styles.folderDropdown}
+          >
+            {folders.map((folder) => (
+              <TouchableOpacity
+                key={folder}
+                style={[
+                  styles.folderOption,
+                  selectedFolder ===
+                    folder &&
+                    styles.selectedFolderOption,
+                ]}
+                onPress={() => {
+                  setSelectedFolder(
+                    folder
+                  );
+                  setShowFolderSelector(
+                    false
+                  );
+                }}
+              >
+                <Text
+                  style={
+                    styles.folderOptionText
+                  }
+                >
+                  {folder}
+                </Text>
+
+                {selectedFolder ===
+                  folder && (
+                  <Text
+                    style={
+                      styles.checkMark
+                    }
+                  >
+                    ✓
+                  </Text>
+                )}
+              </TouchableOpacity>
+            ))}
+
+            <TouchableOpacity
+              style={
+                styles.createFolderOption
+              }
+              onPress={() => {
+                setShowCreateFolder(true);
+              }}
+            >
+              <Text
+                style={
+                  styles.createFolderText
+                }
+              >
+                + Create New Folder
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* ------------------------------------- */}
+        {/* Create folder input */}
+        {/* ------------------------------------- */}
+
+        {showCreateFolder && (
+          <View
+            style={styles.createFolderBox}
+          >
+            <TextInput
+              style={styles.input}
+              placeholder="Enter folder name"
+              placeholderTextColor={
+                Colors.foreground
+              }
+              value={newFolderName}
+              onChangeText={
+                setNewFolderName
+              }
+              autoFocus
+              autoCapitalize="words"
+            />
+
+            <View
+              style={
+                styles.createFolderButtons
+              }
+            >
+              <TouchableOpacity
+                style={styles.cancelButton}
+                onPress={() => {
+                  setNewFolderName("");
+                  setShowCreateFolder(
+                    false
+                  );
+                }}
+              >
+                <Text
+                  style={
+                    styles.cancelButtonText
+                  }
+                >
+                  Cancel
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.createButton}
+                onPress={createFolder}
+              >
+                <Text
+                  style={
+                    styles.createButtonText
+                  }
+                >
+                  Create
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+      </View>
+
+      {/* --------------------------------------- */}
+      {/* Select file */}
+      {/* --------------------------------------- */}
 
       {!selectedFile && (
         <UploadButton
@@ -193,9 +455,21 @@ export default function UploadScreen() {
         />
       )}
 
+      {/* --------------------------------------- */}
+      {/* Selected file */}
+      {/* --------------------------------------- */}
+
       {selectedFile && (
         <>
           <View style={styles.card}>
+            <Text style={styles.label}>
+              Folder
+            </Text>
+
+            <Text style={styles.value}>
+              {selectedFolder}
+            </Text>
+
             <Text style={styles.label}>
               Name
             </Text>
@@ -210,7 +484,8 @@ export default function UploadScreen() {
 
             <Text style={styles.value}>
               {(
-                (selectedFile.size ?? 0) / 1024
+                (selectedFile.size ?? 0) /
+                1024
               ).toFixed(2)}{" "}
               KB
             </Text>
@@ -220,12 +495,13 @@ export default function UploadScreen() {
             </Text>
 
             <Text style={styles.value}>
-              {selectedFile.mimeType ?? "Unknown"}
+              {selectedFile.mimeType ??
+                "Unknown"}
             </Text>
           </View>
 
           <UploadButton
-            title="Upload"
+            title={`Upload to ${selectedFolder}`}
             onPress={handleUpload}
           />
 
@@ -257,17 +533,137 @@ const styles = StyleSheet.create({
     color: Colors.foreground,
   },
 
-  card: {
-    backgroundColor:
-      Colors.sidebar,
-    padding: 16,
-    borderRadius: 10,
+  folderSection: {
     gap: 8,
   },
 
   label: {
     color: Colors.primary,
     fontWeight: "600",
+  },
+
+  folderSelector: {
+    minHeight: 50,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    backgroundColor:
+      Colors.sidebar,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+
+  folderValue: {
+    color: Colors.foreground,
+    fontSize: 16,
+    fontWeight: "500",
+  },
+
+  folderArrow: {
+    color: Colors.foreground,
+    fontSize: 14,
+  },
+
+  folderDropdown: {
+    backgroundColor:
+      Colors.sidebar,
+    borderRadius: 10,
+    overflow: "hidden",
+  },
+
+  folderOption: {
+    minHeight: 48,
+    paddingHorizontal: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+
+  selectedFolderOption: {
+    opacity: 0.7,
+  },
+
+  folderOptionText: {
+    color: Colors.foreground,
+    fontSize: 15,
+  },
+
+  checkMark: {
+    color: Colors.primary,
+    fontSize: 18,
+    fontWeight: "700",
+  },
+
+  createFolderOption: {
+    minHeight: 48,
+    paddingHorizontal: 16,
+    justifyContent: "center",
+    borderTopWidth: 1,
+    borderTopColor:
+      Colors.background,
+  },
+
+  createFolderText: {
+    color: Colors.primary,
+    fontSize: 15,
+    fontWeight: "600",
+  },
+
+  createFolderBox: {
+    backgroundColor:
+      Colors.sidebar,
+    padding: 12,
+    borderRadius: 10,
+    gap: 12,
+  },
+
+  input: {
+    minHeight: 45,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor:
+      Colors.background,
+    color: Colors.foreground,
+    borderWidth: 1,
+    borderColor:
+      Colors.primary,
+  },
+
+  createFolderButtons: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: 10,
+  },
+
+  cancelButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+
+  cancelButtonText: {
+    color: Colors.foreground,
+  },
+
+  createButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+    backgroundColor:
+      Colors.primary,
+  },
+
+  createButtonText: {
+    color: Colors.background,
+    fontWeight: "600",
+  },
+
+  card: {
+    backgroundColor:
+      Colors.sidebar,
+    padding: 16,
+    borderRadius: 10,
+    gap: 8,
   },
 
   value: {

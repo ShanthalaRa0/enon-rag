@@ -32,6 +32,7 @@ def create_document(
     workflow_id: str,
     file_type: str,
     language: str,
+    folder: str,
 ) -> Document:
 
     return Document(
@@ -45,6 +46,7 @@ def create_document(
             "workflow_id": workflow_id,
             "file_type": file_type,
             "language": language,
+            "folder": folder,
         },
     )
 
@@ -71,6 +73,7 @@ def chunk_text(
     workflow_id: str,
     file_type: str,
     language: str,
+    folder: str,
 ):
     document = create_document(
         text=text,
@@ -80,6 +83,7 @@ def chunk_text(
         workflow_id=workflow_id,
         file_type=file_type,
         language=language,
+        folder=folder,
     )
 
     return chunk_document(document)

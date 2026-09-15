@@ -37,6 +37,7 @@ def cleanup_failed_workflow(workflow_id: str):
 
         docdel_service.delete_document(
             workflow_id=workflow_id,
+            folder=document["folder"],
             original_filename=document["original_filename"],
             stored_filename=document["stored_filename"],
         )

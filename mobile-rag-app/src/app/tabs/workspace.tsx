@@ -17,6 +17,7 @@ import { API_URL } from "@/config/api";
 type WorkspaceItem = {
   name: string;
   type: "folder" | "file";
+  folder?: string;
   children?: WorkspaceItem[];
 };
 
@@ -126,12 +127,14 @@ export default function WorkspaceScreen() {
   );
 }
 
-function WorkspaceRow({ item }: { item: WorkspaceItem }) {
+function WorkspaceRow({ item, folderPath = "", }: { item: WorkspaceItem; folderPath?: string; }) {
   const [expanded, setExpanded] = useState(false);
 
   const router = useRouter();
 
   const isFolder = item.type === "folder";
+
+  const currentPath = folderPath ? `${folderPath}/${item.name}` : item.name;
 
   const handlePress = async () => {
     if (isFolder) {
@@ -144,7 +147,18 @@ function WorkspaceRow({ item }: { item: WorkspaceItem }) {
       .pop()
       ?.toLowerCase() ?? "";
     
-    const fileUrl = `${API_URL}/workspace/file/${encodeURIComponent(item.name)}`;
+    const filePath = folderPath ? `${folderPath}/${item.name}` : item.name;
+
+    const fileUrl = `${API_URL}/workspace/file/${filePath
+      .split("/")
+      .map(encodeURIComponent)
+      .join("/")}`;
+    console.log("[OPEN FILE]", {
+      name: item.name,
+      folderPath, 
+      filePath, 
+      fileUrl,
+    }); 
     try {
       if (
         [
@@ -169,14 +183,11 @@ function WorkspaceRow({ item }: { item: WorkspaceItem }) {
         } else {
           console.error("Cannot open file:", fileUrl);
         }
-
         return;
       }
 
       if (extension === "txt") {
-        const response = await fetch(
-          `${API_URL}/workspace/file/${encodeURIComponent(item.name)}`
-        );
+        const response = await fetch(fileUrl);
 
         if (!response.ok) {
           throw new Error(
@@ -246,6 +257,7 @@ function WorkspaceRow({ item }: { item: WorkspaceItem }) {
             <WorkspaceRow
               key={`${child.name}-${index}`}
               item={child}
+              folderPath={currentPath}
             />
           ))}
         </View>

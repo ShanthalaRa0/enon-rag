@@ -27,23 +27,33 @@ logger = logging.getLogger(__name__)
 def document_exists(
     db,
     file_hash: str,
+    folder: str,
 ) -> bool:
     """
-    Prevent duplicate ingestion.
+    Prevent duplicate ingestion within the same folder.
     """
 
     if db is None:
         return False
 
-    existing_hashes = set()
-
     for _, doc in db.docstore._dict.items():
 
-        existing_hashes.add(
-            doc.metadata.get("hash")
+        stored_hash = doc.metadata.get(
+            "hash"
         )
 
-    return file_hash in existing_hashes
+        stored_folder = doc.metadata.get(
+            "folder",
+            "documents",
+        )
+
+        if (
+            stored_hash == file_hash
+            and stored_folder == folder
+        ):
+            return True
+
+    return False
 
 
 # =========================================================
@@ -59,7 +69,7 @@ def store_embeddings(
     Store chunked documents in FAISS.
 
     Celery sends chunks as dictionaries:
-    
+
     {
         "page_content": "...",
         "metadata": {}
@@ -75,6 +85,22 @@ def store_embeddings(
             f"storing {len(chunks)} chunks"
         )
 
+        # -------------------------------------------------
+        # Get file metadata
+        # -------------------------------------------------
+
+        file_hash = None
+        folder = "documents"
+
+        if metadata:
+            file_hash = metadata.get(
+                "file_hash"
+            )
+
+            folder = metadata.get(
+                "folder",
+                "documents",
+            )
 
         # -------------------------------------------------
         # Convert dict -> Document
@@ -92,18 +118,17 @@ def store_embeddings(
                 ),
             }
 
-            file_hash = None
-            # Used for duplicate detection
-            if metadata:
-
-                document_metadata["hash"] = (
-                    metadata.get(
-                        "file_hash"
-                    )
-                )
-            # Ensure hash exists for duplicate detection
+            # Ensure hash exists
             if file_hash:
                 document_metadata["hash"] = file_hash
+
+            # Ensure folder exists
+            document_metadata["folder"] = (
+                document_metadata.get(
+                    "folder",
+                    folder,
+                )
+            )
 
             documents.append(
                 Document(
@@ -113,7 +138,6 @@ def store_embeddings(
                     metadata=document_metadata,
                 )
             )
-
 
         # -------------------------------------------------
         # Load existing DB
@@ -125,31 +149,23 @@ def store_embeddings(
             embedding_model
         )
 
-
         # -------------------------------------------------
         # Duplicate detection
         # -------------------------------------------------
 
-        file_hash = None
-
-        if metadata:
-
-            file_hash = metadata.get(
-                "file_hash"
-            )
-
-
         if file_hash and document_exists(
             db,
             file_hash,
+            folder,
         ):
 
             logger.warning(
-                "[DUPLICATE DOCUMENT SKIPPED]"
+                f"[DUPLICATE DOCUMENT SKIPPED] "
+                f"folder={folder}, "
+                f"hash={file_hash}"
             )
 
             return
-
 
         # -------------------------------------------------
         # Create / Append FAISS
@@ -161,13 +177,10 @@ def store_embeddings(
                 "[FAISS CREATE]"
             )
 
-            embeddings = get_embedding_model()
-
             db = create_vector_db(
                 documents,
-                embeddings
+                embedding_model,
             )
-
 
         else:
 
@@ -175,11 +188,9 @@ def store_embeddings(
                 "[FAISS APPEND]"
             )
 
-
             db.add_documents(
                 documents
             )
-
 
         # -------------------------------------------------
         # Save DB
@@ -189,11 +200,9 @@ def store_embeddings(
             db
         )
 
-
         logger.info(
             "[VECTOR STORE COMPLETED]"
         )
-
 
     except Exception:
 
@@ -202,6 +211,7 @@ def store_embeddings(
         )
 
         raise
+
 
 # =========================================================
 # Delete Document Vectors
@@ -212,7 +222,7 @@ def delete_by_workflow_id(
 ):
     """
     Delete all FAISS vectors belonging to a workflow.
-    """ 
+    """
 
     try:
 

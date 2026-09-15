@@ -47,7 +47,9 @@ services:
       - rag-network
 
   postgres:
-    image: postgres:16-alpine
+    build:
+      context: ./rag-server/postgres
+      dockerfile: Dockerfile
 
     container_name: enon-postgres
 

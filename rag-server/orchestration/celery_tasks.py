@@ -61,6 +61,7 @@ def extract_document_task(
     source_file: str,
     file_hash: str,
     page_number: int,
+    folder: str,
 ):
 
     try:
@@ -121,6 +122,7 @@ def extract_document_task(
             source_file=source_file,
             file_hash=file_hash,
             page_number=page_number,
+            folder=folder,
         )
 
     except Exception as e:
@@ -180,6 +182,7 @@ def chunk_document_task(
     translated_file: str | None,
     file_hash: str,
     page_number: int,
+    folder: str,
 ):
 
     try:
@@ -214,6 +217,7 @@ def chunk_document_task(
             workflow_id=workflow_id,
             file_type="original",
             language=original_language,
+            folder=folder,
         )
 
         original_chunks = []
@@ -226,6 +230,7 @@ def chunk_document_task(
 
             metadata.update({
                 "workflow_id": str(workflow_id),
+                "folder": folder,
                 "source_file": source_file,
                 "original_filename": source_file,
                 "stored_filename": translated_file,
@@ -259,6 +264,7 @@ def chunk_document_task(
                 workflow_id=workflow_id,
                 file_type="translated",
                 language=translated_language,
+                folder=folder,
             )
 
             for doc in translated_documents:
@@ -269,6 +275,7 @@ def chunk_document_task(
 
                 metadata.update({
                     "workflow_id": str(workflow_id),
+                    "folder": folder,
                     "source_file": translated_file,
                     "original_filename": source_file,
                     "stored_filename": translated_file,
@@ -313,6 +320,7 @@ def chunk_document_task(
             source_file=source_file,
             file_hash=file_hash,
             page_number=page_number,
+            folder=folder,
         )
 
     except Exception as e:
@@ -359,10 +367,6 @@ def chunk_document_task(
     bind=True,
     max_retries=3,
 )
-@celery_app.task(
-    bind=True,
-    max_retries=3,
-)
 def translate_document_task(
     self,
     workflow_id: str,
@@ -370,6 +374,7 @@ def translate_document_task(
     source_file: str,
     file_hash: str,
     page_number: int,
+    folder: str,
 ):
 
     try:
@@ -396,6 +401,7 @@ def translate_document_task(
             workflow_id=workflow_id,
             text=extracted_text,
             original_filename=source_file,
+            folder=folder,
         )
 
         logger.info(
@@ -424,6 +430,7 @@ def translate_document_task(
             ),
             file_hash=file_hash,
             page_number=page_number,
+            folder=folder,
         )
 
     except Exception as e:
@@ -485,6 +492,7 @@ def generate_embeddings_task(
     source_file: str,
     file_hash: str,
     page_number: int,
+    folder: str,
 ):
 
     try:
@@ -530,6 +538,7 @@ def generate_embeddings_task(
             source_file=source_file,
             file_hash=file_hash,
             page_number=page_number,
+            folder=folder,
         )
 
     except Exception as e:
@@ -586,6 +595,7 @@ def store_vectors_task(
     source_file: str,
     file_hash: str,
     page_number: int,
+    folder: str
 ):
 
     try:
@@ -617,6 +627,7 @@ def store_vectors_task(
             chunks=chunks,
             metadata={
                 "workflow_id": str(workflow_id),
+                "folder": folder,
                 "source_file": source_file,
                 "file_hash": file_hash,
                 "page_number": page_number,
@@ -632,7 +643,8 @@ def store_vectors_task(
         # -------------------------------------------------
 
         complete_workflow_task.delay(
-            workflow_id=workflow_id
+            workflow_id=workflow_id,
+            folder=folder,
         )
 
     except Exception as e:
@@ -680,6 +692,7 @@ def store_vectors_task(
 @celery_app.task
 def complete_workflow_task(
     workflow_id: str,
+    folder: str,
 ):
 
     logger.info(

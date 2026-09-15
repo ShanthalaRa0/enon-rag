@@ -1,5 +1,3 @@
-# services/retrieval_service.py
-
 import json
 import logging
 import os
@@ -18,7 +16,10 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 
+# =========================================================
 # LLM
+# =========================================================
+
 llm = ChatOllama(
     model=os.getenv(
         "RAG_MODEL",
@@ -32,7 +33,11 @@ llm = ChatOllama(
     think=True,
 )
 
+
+# =========================================================
 # Generate Answer
+# =========================================================
+
 def generate_answer(
     question: str,
     results: list,
@@ -51,10 +56,29 @@ def generate_answer(
             "sources": [],
         }
 
+    # -----------------------------------------------------
     # Build context
+    # -----------------------------------------------------
+
     context_parts = []
 
     for index, result in enumerate(results):
+
+        logger.info(
+            "[RESULT %s] folder=%s filename=%s page=%s score=%s search_type=%s",
+            index,
+            result.get("folder"),
+            result.get("filename"),
+            result.get("page"),
+            result.get("score"),
+            result.get("search_type"),
+        )
+
+        logger.info(
+            "[TEXT %s] %s",
+            index,
+            result.get("text", "")[:500],
+        )
 
         context_parts.append(
             f"""
@@ -66,11 +90,17 @@ Filename:
 Original filename:
 {result.get("original_filename")}
 
+Folder:
+{result.get("folder", "documents")}
+
 Page:
 {result.get("page")}
 
 Language:
 {result.get("language")}
+
+File type:
+{result.get("file_type")}
 
 Search type:
 {result.get("search_type")}
@@ -79,11 +109,15 @@ Content:
 {result.get("text", "")}
 """
         )
+
     context = "\n".join(
         context_parts
     )
 
+    # -----------------------------------------------------
     # Prompt
+    # -----------------------------------------------------
+
     prompt = f"""
 You are an expert RAG question-answering system.
 
@@ -117,14 +151,17 @@ INSTRUCTIONS:
 11. Give a clear and concise answer.
 12. Identify which sources were used to construct
     the answer.
-13. Do not cite multiple sources if they contain substantially
-    the same information.
-14. Prefer the smallest set of sources necessary to support
-    the answer.
-15. If SOURCE 2 repeats SOURCE 1, do not include SOURCE 2
-    unless it provides additional information.
-16. Prefer one strong source over several redundant sources.
+13. Do not cite multiple sources if they contain
+    substantially the same information.
+14. Prefer the smallest set of sources necessary
+    to support the answer.
+15. If SOURCE 2 repeats SOURCE 1, do not include
+    SOURCE 2 unless it provides additional information.
+16. Prefer one strong source over several redundant
+    sources.
+
 Return ONLY valid JSON in this format:
+
 {{
     "answer": "The final answer to the user's question.",
     "source_indices": [1, 3]
@@ -134,28 +171,36 @@ The source_indices must contain the SOURCE numbers
 that actually support the answer.
 """
 
+    # -----------------------------------------------------
     # Call LLM
+    # -----------------------------------------------------
+
     logger.info("[LLM] Generating answer...")
 
     response = llm.invoke(prompt)
 
     content = response.content.strip()
 
-    logger.info(f"[LLM RAW RESPONSE] {content}")
+    logger.info(
+        f"[LLM RAW RESPONSE] {content}"
+    )
 
+    # -----------------------------------------------------
     # Parse LLM response
+    # -----------------------------------------------------
 
     answer = ""
     source_indices = []
 
     try:
-        # Remove ```json ... ``` if the model adds it
+
+        # Remove ```json ... ```
         content = re.sub(
             r"^```json\s*",
             "",
             content,
             flags=re.IGNORECASE,
-)
+        )
 
         content = re.sub(
             r"^```\s*",
@@ -171,15 +216,7 @@ that actually support the answer.
 
         parsed = json.loads(content)
 
-      
-        # Handle normal JSON object
-        #
-        # {
-        #   "answer": "...",
-        #   "source_indices": [1, 5]
-        # }
-
-
+        # Normal JSON object
         if isinstance(parsed, dict):
 
             answer = parsed.get(
@@ -192,11 +229,7 @@ that actually support the answer.
                 [],
             )
 
-       
-        # Handle JSON returned as a JSON string
-        #
-        # "{\"answer\":\"...\",\"source_indices\":[1,5]}"
-
+        # JSON returned as a JSON string
         elif isinstance(parsed, str):
 
             nested = json.loads(parsed)
@@ -221,7 +254,6 @@ that actually support the answer.
 
             answer = str(parsed)
 
-
     except json.JSONDecodeError:
 
         logger.warning(
@@ -231,7 +263,9 @@ that actually support the answer.
         answer = content
         source_indices = []
 
+    # -----------------------------------------------------
     # Normalize answer
+    # -----------------------------------------------------
 
     if isinstance(answer, dict):
 
@@ -246,7 +280,9 @@ that actually support the answer.
 
     answer = str(answer).strip()
 
+    # -----------------------------------------------------
     # Normalize source indices
+    # -----------------------------------------------------
 
     if not isinstance(
         source_indices,
@@ -255,8 +291,9 @@ that actually support the answer.
 
         source_indices = []
 
-
+    # -----------------------------------------------------
     # Get source documents
+    # -----------------------------------------------------
 
     sources = []
 
@@ -289,6 +326,10 @@ that actually support the answer.
                     "workflow_id": result.get(
                         "workflow_id"
                     ),
+                    "folder": result.get(
+                        "folder",
+                        "documents",
+                    ),
                     "page": result.get(
                         "page"
                     ),
@@ -313,12 +354,10 @@ that actually support the answer.
 
             continue
 
-
     logger.info(
         f"[LLM] Answer generated using "
         f"{len(sources)} sources"
     )
-
 
     return {
         "answer": answer,
@@ -326,30 +365,56 @@ that actually support the answer.
     }
 
 
-
+# =========================================================
 # Query Documents
+# =========================================================
+
 def query_documents(
     question: str,
     top_k: int = 5,
 ):
     """
-    Retrieve relevant chunks using hybrid searchgenerate_answer
+    Retrieve relevant chunks using hybrid search
     and generate the best answer using the LLM.
     """
 
     try:
 
-        logger.info(f"[QUERY] {question}")
+        logger.info(
+            f"[QUERY] {question}"
+        )
 
+        # -------------------------------------------------
         # Hybrid Retrieval
-        results = hybrid_search(query=question,top_k=top_k)
+        # -------------------------------------------------
 
-        logger.info(f"[RETRIEVAL COMPLETED] " f"{len(results)} chunks")
+        results = hybrid_search(
+            query=question,
+            top_k=top_k,
+        )
 
+        logger.info(
+            f"[RETRIEVAL COMPLETED] "
+            f"{len(results)} chunks"
+        )
+
+        # -------------------------------------------------
         # Remove duplicate sources
-        results = deduplicate_results(results)
+        # -------------------------------------------------
 
+        results = deduplicate_results(
+            results
+        )
+
+        logger.info(
+            f"[DEDUPLICATION COMPLETED] "
+            f"{len(results)} chunks"
+        )
+
+        # -------------------------------------------------
         # LLM Answer Generation
+        # -------------------------------------------------
+
         llm_result = generate_answer(
             question=question,
             results=results,
@@ -367,15 +432,31 @@ def query_documents(
                 "sources"
             ],
         }
-    except Exception as e:
-        logger.exception("[RETRIEVAL FAILED]")
+
+    except Exception:
+
+        logger.exception(
+            "[RETRIEVAL FAILED]"
+        )
+
         raise
 
 
-def deduplicate_results(results: list):
+# =========================================================
+# Deduplicate Retrieval Results
+# =========================================================
+
+def deduplicate_results(
+    results: list,
+):
     """
     Remove duplicate retrieval results based on:
-    filename + page + file_type + language.
+
+        folder
+        + filename
+        + page
+        + file_type
+        + language
 
     When duplicates are found, the first result is kept.
     Since hybrid_search returns results by relevance,
@@ -383,11 +464,13 @@ def deduplicate_results(results: list):
     """
 
     unique_results = []
+
     seen = set()
 
     for result in results:
 
         key = (
+            result.get("folder", "documents"),
             result.get("filename"),
             result.get("page"),
             result.get("file_type"),
@@ -398,15 +481,19 @@ def deduplicate_results(results: list):
 
             logger.info(
                 "[RETRIEVAL] Removing duplicate result: "
-                f"filename={key[0]}, "
-                f"page={key[1]}, "
-                f"file_type={key[2]}, "
-                f"language={key[3]}"
+                f"folder={key[0]}, "
+                f"filename={key[1]}, "
+                f"page={key[2]}, "
+                f"file_type={key[3]}, "
+                f"language={key[4]}"
             )
 
             continue
 
         seen.add(key)
-        unique_results.append(result)
+
+        unique_results.append(
+            result
+        )
 
     return unique_results

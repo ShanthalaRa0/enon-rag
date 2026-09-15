@@ -25,10 +25,11 @@ class DocdelService:
     def delete_document(
         self,
         workflow_id: str,
+        folder: str,
         original_filename: str,
         stored_filename: str = None,
     ):
-        # 1. Delete vectors
+        # Delete vectors
         try:
             delete_by_workflow_id(workflow_id)
 
@@ -41,9 +42,20 @@ class DocdelService:
             )
             raise
 
-        # 2. Delete original file
+        if folder == "documents":
+            relative_path = Path(original_filename)
+        else:
+            relative_path = (
+                Path(folder) / original_filename
+            )
+
+        # Delete original file
         original_file = (
-            self.original_upload_dir / original_filename
+            self.original_upload_dir
+            / relative_path
+        )
+        logger.info(
+            f"[CHECK ORIGINAL FILE] {original_file}"
         )
 
         if original_file.exists():
@@ -53,12 +65,10 @@ class DocdelService:
                 f"[ORIGINAL FILE DELETED] {original_file}"
             )
 
-        # 3. Delete translated file
+        # Delete translated file
         if stored_filename:
-
             translated_file = (
-                self.translated_upload_dir
-                / stored_filename
+                self.translated_upload_dir / relative_path
             )
 
             logger.info(
@@ -69,16 +79,16 @@ class DocdelService:
                 f"[EXISTS] {translated_file.exists()}"
             )
 
-            if translated_file.exists():
+        if translated_file.exists():
 
-                translated_file.unlink()
+            translated_file.unlink()
 
-                logger.info(
-                    f"[TRANSLATED FILE DELETED] {translated_file}"
-                )
+            logger.info(
+                f"[TRANSLATED FILE DELETED] {translated_file}"
+            )
 
 
-        # 4. Delete database record
+        #  Delete database record
         self.database_service.delete_document(
             workflow_id
         )

@@ -67,6 +67,20 @@ function HistoryCard({
       </Text>
 
       {/* ------------------------------------------
+          Folder
+          ------------------------------------------ */}
+
+      <View style={styles.row}>
+        <Text style={styles.label}>
+          Folder
+        </Text>
+
+        <Text style={styles.value}>
+          {item.folder || "documents"}
+        </Text>
+      </View>
+
+      {/* ------------------------------------------
           Status
           ------------------------------------------ */}
 

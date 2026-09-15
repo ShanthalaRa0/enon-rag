@@ -42,6 +42,7 @@ def update_pipeline_status(
     progress: int = None,
     error: str = None,
     file_name: str = None,
+    folder: str = None,
     created_at: str = None,
 ):
     """
@@ -83,6 +84,9 @@ def update_pipeline_status(
 
         if file_name is not None:
             payload["file_name"] = file_name
+
+        if folder is not None:
+            payload["folder"] = folder
 
         if created_at is not None:
             payload["created_at"] = created_at

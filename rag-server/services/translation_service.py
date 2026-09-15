@@ -150,6 +150,7 @@ Document:
         translated_text: str,
         original_filename: str,
         target_language: str,
+        folder: str,
     ) -> str:
 
         original_path = Path(original_filename)
@@ -159,18 +160,53 @@ Document:
             f"{target_language.lower()}.txt"
         )
 
-        translated_path = (
-            TRANSLATED_UPLOAD_DIR /
-            translated_filename
-        )
+        # -------------------------------------------------
+        # Build translated folder structure
+        # -------------------------------------------------
 
-        TRANSLATED_UPLOAD_DIR.mkdir(
+        if folder == "documents":
+            translated_path = (
+                TRANSLATED_UPLOAD_DIR
+                / translated_filename
+            )
+
+            stored_translated_filename = (
+                translated_filename
+            )
+
+        else:
+            translated_folder = (
+                TRANSLATED_UPLOAD_DIR
+                / folder
+            )
+
+            translated_folder.mkdir(
+                parents=True,
+                exist_ok=True,
+            )
+
+            translated_path = (
+                translated_folder
+                / translated_filename
+            )
+
+            stored_translated_filename = (
+                Path(folder)
+                / translated_filename
+            ).as_posix()
+
+        # -------------------------------------------------
+        # Ensure translated directory exists
+        # -------------------------------------------------
+
+        translated_path.parent.mkdir(
             parents=True,
-            exist_ok=True
+            exist_ok=True,
         )
 
         logger.info(
-            f"[CHECK TRANSLATED FILE] {translated_path}"
+            f"[CHECK TRANSLATED FILE] "
+            f"{translated_path}"
         )
 
         translated_path.write_text(
@@ -179,11 +215,16 @@ Document:
         )
 
         logger.info(
-            f"[TRANSLATION SAVED] {translated_path}"
+            f"[TRANSLATION SAVED] "
+            f"{translated_path}"
         )
 
-        return str(translated_path)
+        logger.info(
+            f"[TRANSLATED STORED FILENAME] "
+            f"{stored_translated_filename}"
+        )
 
+        return stored_translated_filename
 
     # =====================================================
     # Process
@@ -194,6 +235,7 @@ Document:
         workflow_id: str,
         text: str,
         original_filename: str,
+        folder: str,
     ) -> dict:
 
         language = self.detect_language(text)
@@ -201,7 +243,6 @@ Document:
         logger.info(
             f"[LANGUAGE DETECTED] {language}"
         )
-
 
         if language == Language.JAPANESE.name:
 
@@ -230,32 +271,28 @@ Document:
             f"{language} -> {target_language}"
         )
 
-
         translated = self.translate(
             text=text,
             target_language=target_language,
         )
 
-
         translated_file = self.save_translation(
             translated_text=translated,
             original_filename=original_filename,
             target_language=target_language,
+            folder=folder,
         )
 
         database_service.update_translation(
             workflow_id=workflow_id,
             original_language=language,
             translated=True,
-            stored_filename=Path(translated_file).name,
+            stored_filename=translated_file,
         )
-        
-
 
         logger.info(
             "[TRANSLATION COMPLETED]"
         )
-
 
         return {
             "language": language,
