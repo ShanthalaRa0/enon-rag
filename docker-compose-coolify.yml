@@ -49,7 +49,7 @@ services:
   postgres:
     build:
       context: ./rag-server/postgres
-      dockerfile: Dockerfile
+      dockerfile: DockerfileCoolify
 
     container_name: enon-postgres
 
