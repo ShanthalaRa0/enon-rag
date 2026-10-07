@@ -4,11 +4,11 @@ from pathlib import Path
 EMBED_MODEL = "mxbai-embed-large"
 OCR_MODEL = "glm-ocr"
 
-# TRANSLATION_MODEL = "qwen3.5:9b"
-TRANSLATION_MODEL = "qwen2.5:7b"
+TRANSLATION_MODEL = "qwen3.5:9b"
+# TRANSLATION_MODEL = "qwen2.5:7b"
 # TRANSLATION_MODEL = "translategemma:12b"
 
-RAG_MODEL = "qwen2.5:7b"
+RAG_MODEL = "qwen3.5:9b"
 
 # Chunking
 CHUNK_SIZE = 300
