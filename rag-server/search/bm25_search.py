@@ -96,20 +96,39 @@ def bm25_search(
 
     scores = bm25.get_scores(tokenized_query)
 
-    # DEBUG: print every positive EMS match
-    print("BM25 POSITIVE MATCHES:")
+    # # DEBUG: print every positive EMS match
+    # print("BM25 POSITIVE MATCHES:")
+
+    # for doc, score in zip(docs, scores):
+    #     if score > 0:
+    #         print(
+    #             "score=",
+    #             float(score),
+    #             "folder=",
+    #             doc.metadata.get("folder"),
+    #             "source=",
+    #             doc.metadata.get("source_file"),
+    #             "contains_ems=",
+    #             "ems" in tokenize(doc.page_content or ""),
+    #         )
+
+    print("BM25 MATCH DEBUG:")
+
+    query_tokens = set(tokenized_query)
 
     for doc, score in zip(docs, scores):
-        if score > 0:
+
+        doc_tokens = set(tokenize(doc.page_content or ""))
+
+        matching_tokens = query_tokens.intersection(doc_tokens)
+
+        if matching_tokens:
             print(
-                "score=",
-                float(score),
-                "folder=",
-                doc.metadata.get("folder"),
-                "source=",
-                doc.metadata.get("source_file"),
-                "contains_ems=",
-                "ems" in tokenize(doc.page_content or ""),
+                "score=", float(score),
+                "matching_tokens=", matching_tokens,
+                "folder=", doc.metadata.get("folder"),
+                "source=", doc.metadata.get("source_file"),
+                "text=", doc.page_content[:200],
             )
 
     ranked = sorted(
@@ -122,7 +141,9 @@ def bm25_search(
 
     for doc, score in ranked:
 
-        if score <= 0:
+        # if score <= 0:
+        #     continue
+        if not set(tokenized_query).intersection(tokenize(doc.page_content or "")):
             continue
 
         # IMPORTANT:
