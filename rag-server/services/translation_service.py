@@ -1,5 +1,4 @@
 import logging
-from urllib import response
 
 from services.database_service import database_service
 
@@ -104,20 +103,28 @@ Document:
 
 {text}
 """
-
         logger.info("[OLLAMA REQUEST START]")
+
+        ollama_response = self.llm.invoke(prompt)
+
+        logger.info("[OLLAMA RESPONSE RECEIVED]")
+
+        logger.info(
+            "[OLLAMA RESPONSE TYPE] %s",
+            type(ollama_response),
+        )
 
         logger.info(
             "[OLLAMA RESPONSE METADATA] %s",
-            response.response_metadata,
+            ollama_response.response_metadata,
         )
 
         logger.info(
             "[OLLAMA ADDITIONAL KWARGS] %s",
-            response.additional_kwargs,
+            ollama_response.additional_kwargs,
         )
 
-        translated_text = response.content
+        translated_text = ollama_response.content
 
         if isinstance(translated_text, list):
             translated_text = "\n".join(
@@ -126,14 +133,16 @@ Document:
                 else str(item)
                 for item in translated_text
             )
+
         if not isinstance(translated_text, str) or not translated_text.strip():
             raise RuntimeError(
                 "Ollama returned an empty translation response. "
-                f"Metadata: {response.response_metadata}"
+                f"Metadata: {ollama_response.response_metadata}"
             )
 
         logger.info(
-            f"[TRANSLATION OUTPUT] {translated_text[:500]}"
+            "[TRANSLATION OUTPUT] %s",
+            translated_text[:500],
         )
 
         return translated_text.strip()
