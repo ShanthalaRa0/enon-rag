@@ -20,15 +20,15 @@ logger = logging.getLogger(__name__)
 # LLM
 # =========================================================
 
+RAG_MODEL = os.getenv("RAG_MODEL", "qwen3.5:9b")
+BASE_URL = os.getenv(
+    "OLLAMA_BASE_URL",
+    "http://host.docker.internal:11434",
+)
+
 llm = ChatOllama(
-    model=os.getenv(
-        "RAG_MODEL",
-        "qwen2.5:7b",
-    ),
-    base_url=os.getenv(
-        "OLLAMA_BASE_URL",
-        "http://host.docker.internal:11434",
-    ),
+    model=RAG_MODEL,
+    base_url=BASE_URL,
     temperature=0,
     think=True,
 )
