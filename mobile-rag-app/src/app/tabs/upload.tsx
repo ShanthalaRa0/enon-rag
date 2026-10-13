@@ -15,6 +15,9 @@ import {
 import UploadButton from "@/components/UploadButton";
 import { Colors } from "@/theme";
 import { useUpload } from "@/context/UploadContext";
+import { useCallback} from "react";
+import { useFocusEffect } from "expo-router";
+import { API_URL } from "@/config/api";
 
 export default function UploadScreen() {
   const {
@@ -42,6 +45,104 @@ export default function UploadScreen() {
 
   const [newFolderName, setNewFolderName] =
     useState("");
+
+
+// ---------------------------------------------
+// Load folders from originals
+// ---------------------------------------------
+
+const loadFolders = async () => {
+  try {
+    const response = await fetch(
+      `${API_URL}/workspace`
+    );
+
+    if (!response.ok) {
+      throw new Error(
+        `Request failed: ${response.status}`
+      );
+    }
+
+    const data = await response.json();
+
+    console.log(
+      "[WORKSPACE RESPONSE]",
+      JSON.stringify(data, null, 2)
+    );
+
+    // Workspace root
+    const workspaceRoot = data.results;
+
+    // Find ORIGINALS directly under workspace
+    const originalsFolder =
+      workspaceRoot.children?.find(
+        (item: any) =>
+          item.type === "folder" &&
+          item.name.toLowerCase() === "originals"
+      );
+
+    if (!originalsFolder) {
+      console.warn(
+        "[UPLOAD FOLDERS] originals folder not found"
+      );
+
+      setFolders(["documents"]);
+      setSelectedFolder("documents");
+
+      return;
+    }
+
+    // Get folders directly inside originals
+    const folderNames =
+      originalsFolder.children
+        ?.filter(
+          (item: any) =>
+            item.type === "folder"
+        )
+        .map(
+          (item: any) =>
+            item.name
+        ) ?? [];
+
+    console.log(
+      "[UPLOAD FOLDERS FROM ORIGINALS]",
+      folderNames
+    );
+
+    if (folderNames.length === 0) {
+      setFolders(["documents"]);
+      setSelectedFolder("documents");
+      return;
+    }
+
+    setFolders(folderNames);
+
+    // Default folder
+    if (
+      folderNames.includes("documents")
+    ) {
+      setSelectedFolder("documents");
+    } else {
+      setSelectedFolder(folderNames[0]);
+    }
+
+  } catch (error) {
+    console.error(
+      "[UPLOAD FOLDERS] Failed:",
+      error
+    );
+
+    setFolders(["documents"]);
+    setSelectedFolder("documents");
+  }
+};
+
+
+  useFocusEffect(
+    useCallback(() => {
+      loadFolders();
+    }, [])
+  );
 
   // ---------------------------------------------
   // Select file

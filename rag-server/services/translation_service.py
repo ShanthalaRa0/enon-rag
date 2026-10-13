@@ -37,8 +37,9 @@ class TranslationService:
             model=TRANSLATION_MODEL,
             base_url=OLLAMA_BASE_URL,
             temperature=0,
+            num_ctx=8192,
+            num_predict=4096,
         )
-
 
     # =====================================================
     # Detect Language
@@ -105,40 +106,36 @@ Document:
 
         logger.info("[OLLAMA REQUEST START]")
 
-        response = self.llm.invoke(prompt)
-
-        logger.info("[OLLAMA RESPONSE RECEIVED]")
-
         logger.info(
-            f"[OLLAMA RESPONSE TYPE] {type(response)}"
+            "[OLLAMA RESPONSE METADATA] %s",
+            response.response_metadata,
         )
 
         logger.info(
-            f"[OLLAMA RESPONSE] {response}"
-        )
-
-        logger.info(
-            f"[OLLAMA RESPONSE CONTENT TYPE] "
-            f"{type(response.content)}"
-        )
-
-        logger.info(
-            f"[OLLAMA RESPONSE CONTENT LENGTH] "
-            f"{len(response.content) if response.content else 0}"
+            "[OLLAMA ADDITIONAL KWARGS] %s",
+            response.additional_kwargs,
         )
 
         translated_text = response.content
 
-        if not translated_text or not translated_text.strip():
+        if isinstance(translated_text, list):
+            translated_text = "\n".join(
+                str(item.get("text", ""))
+                if isinstance(item, dict)
+                else str(item)
+                for item in translated_text
+            )
+        if not isinstance(translated_text, str) or not translated_text.strip():
             raise RuntimeError(
-                "Ollama returned an empty translation response."
+                "Ollama returned an empty translation response. "
+                f"Metadata: {response.response_metadata}"
             )
 
         logger.info(
             f"[TRANSLATION OUTPUT] {translated_text[:500]}"
         )
 
-        return translated_text
+        return translated_text.strip()
 
 
     # =====================================================
