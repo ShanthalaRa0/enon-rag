@@ -1,27 +1,40 @@
+
 services:
+
+  nginx:
+    image: nginx:alpine
+    container_name: enon-nginx
+
+    ports:
+      - "8080:80"
+
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+
+    depends_on:
+      - api
+
+    restart: unless-stopped
+
+    networks:
+      - rag-network
 
   api:
     build:
       context: ./rag-server
-      dockerfile: Dockerfile
+
+    container_name: enon-api
 
     expose:
-      - "8001"
-
-    environment:
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_NAME: rag
-      DB_USER: postgres
-      DB_PASSWORD: postgres
+      - "8000"
 
     volumes:
-      - rag-uploads:/app/uploads
-      - rag-vector-store:/app/vector_store
+      - ./rag-server:/app
 
     depends_on:
       postgres:
         condition: service_healthy
+
       redis:
         condition: service_started
 
@@ -32,73 +45,42 @@ services:
 
     networks:
       - rag-network
-
-
-  worker:
-    build:
-      context: ./rag-server
-      dockerfile: Dockerfile
-
-    command: celery -A orchestration.celery_tasks worker --loglevel=info
-
-    environment:
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_NAME: rag
-      DB_USER: postgres
-      DB_PASSWORD: postgres
-
-    volumes:
-      - rag-uploads:/app/uploads
-      - rag-vector-store:/app/vector_store
-
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_started
-
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-
-    restart: unless-stopped
-
-    networks:
-      - rag-network
-
 
   postgres:
     build:
       context: ./rag-server/postgres
       dockerfile: Dockerfile
 
+    container_name: enon-postgres
+
     environment:
       POSTGRES_DB: rag
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
 
+    ports:
+      - "5432:5432"
+
     volumes:
       - postgres-data:/var/lib/postgresql/data
 
     healthcheck:
-      test:
-        - CMD-SHELL
-        - pg_isready -U postgres -d rag
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
       timeout: 5s
-      retries: 10
-      start_period: 10s
+      retries: 5
 
     restart: unless-stopped
 
     networks:
       - rag-network
 
-
   redis:
     image: redis:7-alpine
 
-    expose:
+    container_name: enon-redis
+
+    ports:
       - "6379"
 
     restart: unless-stopped
@@ -106,13 +88,33 @@ services:
     networks:
       - rag-network
 
+  worker:
+    build:
+      context: ./rag-server
+
+    container_name: enon-worker
+
+    command: celery -A orchestration.celery_tasks worker --loglevel=info
+
+    volumes:
+      - ./rag-server:/app
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+      
+    restart: unless-stopped
+
+    networks:
+      - rag-network
 
 volumes:
   postgres-data:
-  rag-uploads:
-  rag-vector-store:
-
 
 networks:
   rag-network:
-    driver: bridge
