@@ -107,10 +107,10 @@ def hybrid_search(
     # Combine
     # -------------------------------------------------
 
-    combined_results = (
-        bm25_results +
-        semantic_results
-    )
+    combined_results = reciprocal_rank_fusion(
+    bm25_results,
+    semantic_results,
+)
 
     print(
         f"[SEARCH] Combined results: "
@@ -167,13 +167,36 @@ def hybrid_search(
 
     return unique_results[:top_k]
 
-def deduplicate_results(results: list):
-    """
-    Remove duplicate search results based on:
-    filename + page + file_type + language.
+# def deduplicate_results(results: list):
+#     """
+#     Remove duplicate search results based on:
+#     filename + page + file_type + language.
 
-    The first result is kept.
-    """
+#     The first result is kept.
+#     """
+
+#     unique_results = []
+#     seen = set()
+
+#     for result in results:
+
+#         key = (
+#             result.get("folder"),
+#             result.get("filename"),
+#             result.get("page"),
+#             result.get("file_type"),
+#             result.get("language"),
+#         )
+
+#         if key in seen:
+#             continue
+
+#         seen.add(key)
+#         unique_results.append(result)
+
+#     return unique_results
+
+def deduplicate_results(results: list):
 
     unique_results = []
     seen = set()
@@ -186,6 +209,7 @@ def deduplicate_results(results: list):
             result.get("page"),
             result.get("file_type"),
             result.get("language"),
+            result.get("text"),
         )
 
         if key in seen:
@@ -273,3 +297,37 @@ def debug_vector_db(db, search_text):
     print("\nTOTAL EXACT MATCHES:", len(matches))
 
     print("=====================================\n")
+
+def reciprocal_rank_fusion(
+    bm25_results,
+    semantic_results,
+    k=60,
+):
+    fused = {}
+
+    for result_list in [bm25_results, semantic_results]:
+
+        for rank, result in enumerate(result_list, start=1):
+
+            key = (
+                result.get("folder"),
+                result.get("filename"),
+                result.get("page"),
+                result.get("file_type"),
+                result.get("language"),
+                result.get("text"),
+            )
+
+            if key not in fused:
+                fused[key] = {
+                    **result,
+                    "rrf_score": 0.0,
+                }
+
+            fused[key]["rrf_score"] += 1.0 / (k + rank)
+
+    return sorted(
+        fused.values(),
+        key=lambda x: x["rrf_score"],
+        reverse=True,
+    )
