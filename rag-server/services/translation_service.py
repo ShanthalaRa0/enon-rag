@@ -37,6 +37,7 @@ class TranslationService:
             model=TRANSLATION_MODEL,
             base_url=OLLAMA_BASE_URL,
             temperature=0,
+            reasoning=False,
             num_ctx=8192,
             num_predict=4096,
         )
