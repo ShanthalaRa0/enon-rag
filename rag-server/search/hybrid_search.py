@@ -1,6 +1,7 @@
 # search/hybrid_search.py
 
 import os
+from search.bm25_search import normalize_text
 
 from dotenv import load_dotenv
 
@@ -55,6 +56,23 @@ def hybrid_search(
     top_k=5,
 ):
     db = load_db()
+
+    debug_vector_db(db, query)
+
+    print("\n========== EXACT STRING TEST ==========")
+
+    query_normalized = normalize_text(query).lower()
+
+    for doc in db.docstore._dict.values():
+
+        text = normalize_text(doc.page_content or "").lower()
+
+        if query_normalized in text:
+            print("EXACT MATCH FOUND")
+            print("SOURCE:", doc.metadata.get("source_file"))
+            print("TEXT:", doc.page_content[:500])
+
+    print("=======================================\n")
 
     # Retrieve more candidates than the final top_k
     candidate_k = max(top_k * 4, 20)
@@ -223,3 +241,35 @@ def diversify_by_folder(
         diversified.append(result)
 
     return diversified
+
+def debug_vector_db(db, search_text):
+
+    print("\n========== VECTOR DB DEBUG ==========")
+
+    print("DB PATH:", DB_PATH)
+
+    print("FAISS VECTOR COUNT:", db.index.ntotal)
+
+    print("DOCSTORE COUNT:", len(db.docstore._dict))
+
+    search_text = normalize_text(search_text).lower()
+
+    matches = []
+
+    for doc_id, doc in db.docstore._dict.items():
+
+        content = normalize_text(doc.page_content or "").lower()
+
+        if search_text in content:
+
+            matches.append(doc)
+
+            print("\nMATCH FOUND")
+            print("Document ID:", doc_id)
+            print("Source:", doc.metadata.get("source_file"))
+            print("Folder:", doc.metadata.get("folder"))
+            print("Text:", content[:500])
+
+    print("\nTOTAL EXACT MATCHES:", len(matches))
+
+    print("=====================================\n")
