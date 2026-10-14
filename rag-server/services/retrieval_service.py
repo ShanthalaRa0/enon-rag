@@ -204,6 +204,11 @@ that actually support the answer.
         response.content,
     )
 
+    logger.info(
+        "[LLM DEBUG] reasoning_content=%r",
+        getattr(response, "reasoning_content", None),
+    )
+
     content = response.content.strip()
 
     logger.info(
