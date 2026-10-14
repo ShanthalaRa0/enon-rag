@@ -182,6 +182,26 @@ that actually support the answer.
 
     response = llm.invoke(prompt)
 
+    logger.info(
+        "[LLM DEBUG] response_metadata=%s",
+        response.response_metadata,
+    )
+
+    logger.info(
+        "[LLM DEBUG] usage_metadata=%s",
+        response.usage_metadata,
+    )
+
+    logger.info(
+        "[LLM DEBUG] additional_kwargs=%s",
+        response.additional_kwargs,
+    )
+
+    logger.info(
+        "[LLM DEBUG] content=%r",
+        response.content,
+    )
+
     content = response.content.strip()
 
     logger.info(
