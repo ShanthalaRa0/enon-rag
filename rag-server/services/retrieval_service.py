@@ -121,59 +121,32 @@ Content:
     # -----------------------------------------------------
 
     prompt = f"""
-You are an expert RAG question-answering system.
+Answer the user's question using only the document sources below.
 
-You must answer the user's question using ONLY the
-information contained in the retrieved document sources.
-
-USER QUESTION:
+QUESTION:
 {question}
 
-RETRIEVED SOURCES:
+DOCUMENT SOURCES:
 {context}
 
-INSTRUCTIONS:
+RULES:
+1. Find the information that directly answers the question.
+2. Check dates, transaction types, and amounts carefully.
+3. Do not invent information.
+4. If the requested transaction is absent but a different transaction
+   is recorded on that date, explain the difference.
+5. If the information is insufficient, say so.
+6. Cite only the sources supporting your answer.
+7. Keep your answer concise.
 
-1. Read all retrieved sources carefully.
-2. Determine which sources are relevant to the question.
-3. Discard irrelevant information.
-4. Do not assume that the highest BM25 or semantic
-   score is necessarily the correct answer.
-5. Compare the actual content of the sources.
-6. If multiple sources contain useful information,
-   combine them into one accurate answer.
-7. Remove duplicate information.
-8. Do NOT invent information.
-9. Do NOT use your general knowledge when the answer
-   is not present in the retrieved sources.
-10. Distinguish between missing information and
-    information that contradicts the user's assumption.
-
-    If the retrieved documents contain relevant
-    records but do not show the transaction or event
-    requested by the user, explain what the records
-    actually show.
-11. Give a clear and concise answer.
-12. Identify which sources were used to construct
-    the answer.
-13. Do not cite multiple sources if they contain
-    substantially the same information.
-14. Prefer the smallest set of sources necessary
-    to support the answer.
-15. If SOURCE 2 repeats SOURCE 1, do not include
-    SOURCE 2 unless it provides additional information.
-16. Prefer one strong source over several redundant
-    sources.
-
-Return ONLY valid JSON in this format:
+Return only valid JSON, without Markdown formatting:
 
 {{
-    "answer": "The final answer to the user's question.",
-    "source_indices": [1, 3]
+    "answer": "Your answer here",
+    "source_indices": [1]
 }}
 
-The source_indices must contain the SOURCE numbers
-that actually support the answer.
+Use the SOURCE numbers shown above.
 """
 
     # -----------------------------------------------------
