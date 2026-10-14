@@ -356,15 +356,36 @@ Use the SOURCE numbers shown above.
             )
 
             continue
+        
+    # Remove duplicate displayed sources
+    unique_sources = []
+    seen_sources = set()
+
+    for source in sources:
+
+        source_key = (
+            source.get("workflow_id"),
+            source.get("folder"),
+            source.get("filename"),
+            source.get("page"),
+            source.get("file_type"),
+            source.get("language"),
+        )
+
+        if source_key in seen_sources:
+            continue
+
+        seen_sources.add(source_key)
+        unique_sources.append(source)
 
     logger.info(
-        f"[LLM] Answer generated using "
-        f"{len(sources)} sources"
+        f"[LLM] Sources deduplicated: "
+        f"{len(sources)} -> {len(unique_sources)}"
     )
 
     return {
         "answer": answer,
-        "sources": sources,
+        "sources": unique_sources,
     }
 
 
