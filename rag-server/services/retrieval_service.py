@@ -31,6 +31,8 @@ llm = ChatOllama(
     base_url=BASE_URL,
     temperature=0,
     think=False,
+    num_ctx=8192,
+    num_predict=1024,
 )
 
 
