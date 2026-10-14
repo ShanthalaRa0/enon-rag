@@ -144,10 +144,13 @@ INSTRUCTIONS:
 8. Do NOT invent information.
 9. Do NOT use your general knowledge when the answer
    is not present in the retrieved sources.
-10. If the retrieved sources do not contain enough
-    information to answer the question, say:
-    "I could not find enough information in the
-    provided documents to answer this question."
+10. Distinguish between missing information and
+    information that contradicts the user's assumption.
+
+    If the retrieved documents contain relevant
+    records but do not show the transaction or event
+    requested by the user, explain what the records
+    actually show.
 11. Give a clear and concise answer.
 12. Identify which sources were used to construct
     the answer.
@@ -450,50 +453,52 @@ def deduplicate_results(
     results: list,
 ):
     """
-    Remove duplicate retrieval results based on:
+    Remove duplicate retrieval results only when
+    they refer to the same document and contain
+    identical normalized text.
 
-        folder
-        + filename
-        + page
-        + file_type
-        + language
-
-    When duplicates are found, the first result is kept.
-    Since hybrid_search returns results by relevance,
-    the first result should be the highest-ranked one.
+    Different chunks from the same page are preserved.
     """
 
     unique_results = []
-
     seen = set()
 
     for result in results:
 
+        text = result.get("text", "")
+
+        # Normalize whitespace to avoid false differences.
+        normalized_text = " ".join(
+            str(text).split()
+        )
+
         key = (
             result.get("folder", "documents"),
             result.get("filename"),
-            result.get("page"),
             result.get("file_type"),
             result.get("language"),
+            normalized_text,
         )
 
         if key in seen:
 
             logger.info(
-                "[RETRIEVAL] Removing duplicate result: "
-                f"folder={key[0]}, "
-                f"filename={key[1]}, "
-                f"page={key[2]}, "
-                f"file_type={key[3]}, "
-                f"language={key[4]}"
+                "[RETRIEVAL] Removing identical text chunk: "
+                "folder=%s filename=%s page=%s",
+                result.get("folder"),
+                result.get("filename"),
+                result.get("page"),
             )
 
             continue
 
         seen.add(key)
+        unique_results.append(result)
 
-        unique_results.append(
-            result
-        )
+    logger.info(
+        "[RETRIEVAL] Deduplication: %s -> %s chunks",
+        len(results),
+        len(unique_results),
+    )
 
     return unique_results
