@@ -121,26 +121,9 @@ def hybrid_search(
     # Remove exact duplicate chunks
     # -------------------------------------------------
 
-    unique_results = []
-
-    seen = set()
-
-    for result in combined_results:
-
-        key = (
-            result.get("folder"),
-            result.get("workflow_id"),
-            result.get("filename"),
-            result.get("page"),
-            result.get("text"),
-        )
-
-        if key in seen:
-            continue
-
-        seen.add(key)
-
-        unique_results.append(result)
+    unique_results = deduplicate_results(
+        combined_results
+    )
 
     print(
         f"[SEARCH] Unique chunks: "
@@ -167,49 +150,28 @@ def hybrid_search(
 
     return unique_results[:top_k]
 
-# def deduplicate_results(results: list):
-#     """
-#     Remove duplicate search results based on:
-#     filename + page + file_type + language.
-
-#     The first result is kept.
-#     """
-
-#     unique_results = []
-#     seen = set()
-
-#     for result in results:
-
-#         key = (
-#             result.get("folder"),
-#             result.get("filename"),
-#             result.get("page"),
-#             result.get("file_type"),
-#             result.get("language"),
-#         )
-
-#         if key in seen:
-#             continue
-
-#         seen.add(key)
-#         unique_results.append(result)
-
-#     return unique_results
-
 def deduplicate_results(results: list):
+    """
+    Remove identical chunks while preserving different
+    text passages from the same document page.
+    """
 
     unique_results = []
     seen = set()
 
     for result in results:
 
+        normalized_text = " ".join(
+            str(result.get("text") or "").split()
+        )
+
         key = (
             result.get("folder"),
+            result.get("workflow_id"),
             result.get("filename"),
-            result.get("page"),
             result.get("file_type"),
             result.get("language"),
-            result.get("text"),
+            normalized_text,
         )
 
         if key in seen:
@@ -219,23 +181,6 @@ def deduplicate_results(results: list):
         unique_results.append(result)
 
     return unique_results
-
-def deduplicate_by_document_page(results: list):
-    unique = {}
-
-    for result in results:
-        key = (
-            result.get("folder"),
-            result.get("filename"),
-            result.get("page"),
-        )
-
-        if key not in unique:
-            unique[key] = result
-
-    return list(unique.values())
-
-from collections import defaultdict
 
 
 def diversify_by_folder(
@@ -311,11 +256,12 @@ def reciprocal_rank_fusion(
 
             key = (
                 result.get("folder"),
+                result.get("workflow_id"),
                 result.get("filename"),
                 result.get("page"),
                 result.get("file_type"),
                 result.get("language"),
-                result.get("text"),
+                " ".join(str(result.get("text") or "").split()),
             )
 
             if key not in fused:
