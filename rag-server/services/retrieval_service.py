@@ -30,7 +30,7 @@ llm = ChatOllama(
     model=RAG_MODEL,
     base_url=BASE_URL,
     temperature=0,
-    think=False,
+    reasoning=False,
     num_ctx=8192,
     num_predict=1024,
 )
