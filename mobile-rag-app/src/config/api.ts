@@ -6,7 +6,6 @@
 // export const API_URL = `https://${HOST}:11437`;
 // export const WS_URL = `wss://${HOST}:11437/ws`;
 
-const HOST = "ooveddrpceoxxwrdjb8ygset.217.178.60.103.sslip.io";
-export const API_URL = `https://${HOST}`;
-export const WS_URL = `wss://${HOST}/ws`;
+export const API_URL = "https://rag-server-mobile.tail1e26db.ts.net";
 
+export const WS_URL = "wss://rag-server-mobile.tail1e26db.ts.net/ws";
