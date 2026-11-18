@@ -12,6 +12,7 @@ import { uploadDocument } from "@/services/upload";
 import { WorkflowSocket } from "@/services/websocket";
 import "react-native-get-random-values";
 import { v4 as uuidv4 } from "uuid";
+import { Platform } from "react-native";
 
 // =========================================================
 // Types
@@ -120,7 +121,7 @@ export function UploadProvider({
   // Create FormData
   // =======================================================
 
-  function createFormData(
+  function createFormDataOld(
     file: DocumentPickerAsset
   ) {
     const formData = new FormData();
@@ -138,7 +139,32 @@ export function UploadProvider({
 
     return formData;
   }
+  function createFormData(file: DocumentPickerAsset) {
+    const formData = new FormData();
+    console.log("FILE OBJECT:", file.file);
+    console.log("IS BROWSER FILE:", file.file instanceof File);
 
+    if (Platform.OS === "web") {
+      const webFile = (file as any).file;
+
+      if (webFile instanceof File) {
+        formData.append("file", webFile, file.name);
+      } else {
+        throw new Error("Actual browser File object is unavailable");
+      }
+    } else {
+      formData.append(
+        "file",
+        {
+          uri: file.uri,
+          name: file.name,
+          type: file.mimeType ?? "application/octet-stream",
+        } as any
+      );
+    }
+
+    return formData;
+  }
   // =======================================================
   // Update one history item
   // =======================================================
