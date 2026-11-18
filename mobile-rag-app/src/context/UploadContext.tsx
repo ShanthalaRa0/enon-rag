@@ -10,7 +10,8 @@ import { DocumentPickerAsset } from "expo-document-picker";
 
 import { uploadDocument } from "@/services/upload";
 import { WorkflowSocket } from "@/services/websocket";
-import * as Crypto from "expo-crypto";
+import "react-native-get-random-values";
+import { v4 as uuidv4 } from "uuid";
 
 // =========================================================
 // Types
@@ -208,7 +209,7 @@ export function UploadProvider({
     try {
 
       // Create workflow ID
-      const workflowId = Crypto.randomUUID();
+      const workflowId = uuidv4();
 
       // Create history item
     
