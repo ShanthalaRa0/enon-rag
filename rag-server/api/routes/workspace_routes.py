@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 import logging
+from urllib.parse import quote
 
 from config.paths import (
     ORIGINAL_UPLOAD_DIR,
@@ -35,8 +36,14 @@ async def workspace_route():
         )
 
 
+# @router.get("/workspace/file/{file_path:path}")
+# async def workspace_file(file_path: str):
+
 @router.get("/workspace/file/{file_path:path}")
-async def workspace_file(file_path: str):
+async def workspace_file(
+    file_path: str,
+    download: bool = False,
+):
 
     file_path = file_path.strip("/")
 
@@ -200,11 +207,34 @@ async def workspace_file(file_path: str):
     # ---------------------------------------------
     # Return file
     # ---------------------------------------------
+    # ---------------------------------------------
+    # Return file: preview or download
+    # ---------------------------------------------
+
+    disposition = (
+        "attachment" if download else "inline"
+    )
+
+    encoded_filename = quote(actual_path.name)
+
+    headers = {
+        "Content-Disposition": (
+            f"{disposition}; "
+            f"filename*=UTF-8''{encoded_filename}"
+        )
+    }
 
     return FileResponse(
         path=actual_path,
         media_type=supported_types[
             extension
         ]["media_type"],
-        filename=actual_path.name,
+        headers=headers,
     )
+    # return FileResponse(
+    #     path=actual_path,
+    #     media_type=supported_types[
+    #         extension
+    #     ]["media_type"],
+    #     filename=actual_path.name,
+    # )
