@@ -21,22 +21,31 @@ logger = logging.getLogger(__name__)
 # UPLOAD_DIR.mkdir(exist_ok=True)
 
 
+
 @router.post("/upload")
-async def upload_document(file: UploadFile = File(...), overwrite: bool = Form(False),
-                           workflow_id: str = Form(...), folder: str = Form("documents"),):
+async def upload_document(
+    file: UploadFile = File(...),
+    overwrite: bool = Form(False),
+    workflow_id: str = Form(...),
+    folder: str = Form("documents"),
+):
 
     logger.info(f"overwrite received on server: {overwrite}")
+
     # Normalize / validate folder
     folder = ensure_folder(folder)
     file.filename = unquote(file.filename)
+
     logger.info(f"filename received on server: {file.filename}")
     logger.info(f"folder received on server: {folder}")
+
     # Keep only the actual filename
     original_filename = Path(file.filename).name
 
     existing_document = database_service.get_document_by_filename(
-        file.filename , folder
+        original_filename, folder
     )
+
     logger.info(f"existing_document found: {bool(existing_document)}")
     logger.info(f"overwrite flag: {overwrite}")
 
@@ -46,18 +55,18 @@ async def upload_document(file: UploadFile = File(...), overwrite: bool = Form(F
                 status_code=409,
                 detail={
                     "message": "File already exists",
-                    "filename": file.filename,
+                    "filename": original_filename,
                     "folder": folder,
                     "workflow_id": str(existing_document["workflow_id"]),
                 },
             )
-        
 
         # Delete old document
         logger.info(
             f"[OVERWRITE] Removing existing document: "
             f"{existing_document['workflow_id']}"
         )
+
         docdel_service.delete_document(
             workflow_id=str(existing_document["workflow_id"]),
             folder=existing_document["folder"],
@@ -67,21 +76,17 @@ async def upload_document(file: UploadFile = File(...), overwrite: bool = Form(F
 
     file_saved = False
     database_created = False
+    history_created = False
 
     try:
 
-        # workflow_id = str(uuid4())
-
         logger.info(f"UPLOAD filename received: {file.filename!r}")
 
-         # Determine file path
+        # Determine file path
         file_extension = Path(file.filename).suffix.lower()
 
         if folder == "documents":
-            file_path = (
-                ORIGINAL_UPLOAD_DIR / original_filename
-            )
-
+            file_path = ORIGINAL_UPLOAD_DIR / original_filename
             stored_filename = original_filename
 
         else:
@@ -110,12 +115,14 @@ async def upload_document(file: UploadFile = File(...), overwrite: bool = Form(F
 
         # Calculate file hash
         await file.seek(0)
-
         file_bytes = await file.read()
 
         file_hash = hashlib.md5(file_bytes).hexdigest()
 
-        # Save file information to the database
+        # ---------------------------------------------
+        # Save document information
+        # ---------------------------------------------
+
         database_service.create_document(
             workflow_id=workflow_id,
             folder=folder,
@@ -127,6 +134,28 @@ async def upload_document(file: UploadFile = File(...), overwrite: bool = Form(F
         )
 
         database_created = True
+
+        # ---------------------------------------------
+        # Create upload history record
+        # ---------------------------------------------
+
+        database_service.create_upload_history(
+            workflow_id=workflow_id,
+            folder=folder,
+            filename=original_filename,
+            file_size=len(file_bytes),
+            mime_type=file.content_type,
+        )
+
+        history_created = True
+
+        logger.info(
+            f"[UPLOAD HISTORY CREATED] {workflow_id}"
+        )
+
+        # ---------------------------------------------
+        # Start ingestion workflow
+        # ---------------------------------------------
 
         workflow = start_ingestion_workflow(
             workflow_id=workflow_id,
@@ -146,15 +175,50 @@ async def upload_document(file: UploadFile = File(...), overwrite: bool = Form(F
         }
 
     except Exception as e:
+
         logger.exception("Upload failed")
-        # Cleanup database record
+
+        # ---------------------------------------------
+        # Mark history as FAILED
+        # Keep the history record for future reference
+        # ---------------------------------------------
+
+        if history_created:
+            try:
+                database_service.update_upload_history(
+                    workflow_id=workflow_id,
+                    status="FAILED",
+                    current_stage="UPLOAD_FAILED",
+                    progress=0,
+                    error=str(e),
+                )
+
+            except Exception:
+                logger.exception(
+                    f"[UPLOAD HISTORY FAILURE UPDATE FAILED] "
+                    f"{workflow_id}"
+                )
+
+        # ---------------------------------------------
+        # Cleanup document record
+        # ---------------------------------------------
+
         if database_created:
             try:
-                database_service.delete_document(workflow_id=workflow_id)
+                database_service.delete_document(
+                    workflow_id=workflow_id
+                )
+
             except Exception as delete_error:
-                logger.exception(f"Failed to delete database record: {delete_error}"
-                    f"{workflow_id}")
+                logger.exception(
+                    f"Failed to delete database record: "
+                    f"{delete_error} {workflow_id}"
+                )
+
+        # ---------------------------------------------
         # Cleanup uploaded file
+        # ---------------------------------------------
+
         if file_saved:
             try:
                 if file_path.exists():
@@ -162,13 +226,14 @@ async def upload_document(file: UploadFile = File(...), overwrite: bool = Form(F
 
                     logger.info(
                         f"[CLEANUP] Deleted original file: "
-                        f"{file_path}")
+                        f"{file_path}"
+                    )
 
             except Exception:
                 logger.exception(
                     f"[CLEANUP] Failed to delete file: "
                     f"{file_path}"
-                )        
+                )
 
         raise HTTPException(
             status_code=500,

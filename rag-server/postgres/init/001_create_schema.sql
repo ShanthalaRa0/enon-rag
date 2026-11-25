@@ -14,3 +14,18 @@ CREATE TABLE IF NOT EXISTS documents (
     CONSTRAINT documents_folder_filename_key
         UNIQUE (folder, original_filename)
 );
+
+CREATE TABLE IF NOT EXISTS upload_history (
+    id SERIAL PRIMARY KEY,
+    workflow_id UUID NOT NULL UNIQUE,
+    folder VARCHAR(255) NOT NULL DEFAULT 'documents',
+    filename VARCHAR(255) NOT NULL,
+    file_size BIGINT,
+    mime_type VARCHAR(100),
+    status VARCHAR(20) NOT NULL DEFAULT 'RUNNING',
+    current_stage VARCHAR(100) DEFAULT 'UPLOADING',
+    progress INTEGER NOT NULL DEFAULT 0,
+    error TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    completed_at TIMESTAMP
+);

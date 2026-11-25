@@ -1,10 +1,12 @@
-# orchestration/pipeline_status.py
+
 import os
 import json
 import logging
 from datetime import datetime
 
 import redis
+
+from services.database_service import database_service
 
 
 logger = logging.getLogger(__name__)
@@ -25,9 +27,7 @@ redis_client = redis.Redis(
 # Redis Key Builder
 # =========================================================
 
-def build_pipeline_key(
-    workflow_id: str,
-):
+def build_pipeline_key(workflow_id: str):
     return f"pipeline_status:{workflow_id}"
 
 
@@ -46,14 +46,11 @@ def update_pipeline_status(
     created_at: str = None,
 ):
     """
-    Persist workflow status in Redis.
+    Persist workflow status in Redis and PostgreSQL.
     """
 
     try:
-
-        redis_key = build_pipeline_key(
-            workflow_id
-        )
+        redis_key = build_pipeline_key(workflow_id)
 
         # ---------------------------------------------
         # Fetch existing state
@@ -91,12 +88,10 @@ def update_pipeline_status(
         if created_at is not None:
             payload["created_at"] = created_at
 
-        payload["updated_at"] = str(
-            datetime.utcnow()
-        )
+        payload["updated_at"] = str(datetime.utcnow())
 
         # ---------------------------------------------
-        # Save back to Redis
+        # Save to Redis
         # ---------------------------------------------
 
         redis_client.set(
@@ -109,36 +104,66 @@ def update_pipeline_status(
             f"{status} {stage}"
         )
 
-    except Exception as e:
+        # ---------------------------------------------
+        # Update PostgreSQL Upload History
+        # ---------------------------------------------
 
-        logger.exception(
-            "[PIPELINE STATUS UPDATE FAILED]"
-        )
+        try:
+            normalized_status = status.upper()
 
-        raise e
+            if normalized_status == "COMPLETED":
+                history_status = "COMPLETED"
+
+            elif normalized_status == "FAILED":
+                history_status = "FAILED"
+
+            else:
+                history_status = "RUNNING"
+
+            completed_at = (
+                datetime.utcnow()
+                if history_status == "COMPLETED"
+                else None
+            )
+
+            database_service.update_upload_history(
+                workflow_id=workflow_id,
+                status=history_status,
+                current_stage=payload.get("stage", "UNKNOWN"),
+                progress=payload.get("progress", 0),
+                error=(
+                    payload.get("error")
+                    if history_status == "FAILED"
+                    else None
+                ),
+                completed_at=completed_at,
+            )
+
+        except Exception:
+            logger.exception(
+                f"[UPLOAD HISTORY UPDATE FAILED] {workflow_id}"
+            )
+
+    except Exception:
+        logger.exception("[PIPELINE STATUS UPDATE FAILED]")
+        raise
 
 
 # =========================================================
 # Get Pipeline Status
 # =========================================================
 
-def get_pipeline_status(
-    workflow_id: str,
-):
+def get_pipeline_status(workflow_id: str):
     """
     Retrieve workflow state from Redis.
     """
 
     try:
-
-        redis_key = build_pipeline_key(
-            workflow_id
-        )
+        redis_key = build_pipeline_key(workflow_id)
 
         data = redis_client.get(redis_key)
 
         if not data:
-
             return {
                 "workflow_id": workflow_id,
                 "status": "UNKNOWN",
@@ -146,31 +171,23 @@ def get_pipeline_status(
 
         return json.loads(data)
 
-    except Exception as e:
-
-        logger.exception(
-            "[PIPELINE STATUS FETCH FAILED]"
-        )
-
-        raise e
+    except Exception:
+        logger.exception("[PIPELINE STATUS FETCH FAILED]")
+        raise
 
 
 # =========================================================
 # Delete Pipeline Status
 # =========================================================
 
-def delete_pipeline_status(
-    workflow_id: str,
-):
+def delete_pipeline_status(workflow_id: str):
     """
-    Remove workflow state.
+    Remove workflow state from Redis.
+    PostgreSQL upload history is retained.
     """
 
     try:
-
-        redis_key = build_pipeline_key(
-            workflow_id
-        )
+        redis_key = build_pipeline_key(workflow_id)
 
         redis_client.delete(redis_key)
 
@@ -178,10 +195,6 @@ def delete_pipeline_status(
             f"[STATUS DELETED] {workflow_id}"
         )
 
-    except Exception as e:
-
-        logger.exception(
-            "[PIPELINE STATUS DELETE FAILED]"
-        )
-
-        raise e
+    except Exception:
+        logger.exception("[PIPELINE STATUS DELETE FAILED]")
+        raise

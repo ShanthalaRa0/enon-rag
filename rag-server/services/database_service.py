@@ -1,3 +1,4 @@
+
 import logging
 import uuid
 
@@ -56,14 +57,10 @@ class DatabaseService:
             mime_type,
             file_size
         )
-        VALUES
-        (
-            %s,%s,%s,%s,%s,%s,%s
-        )
+        VALUES (%s,%s,%s,%s,%s,%s,%s)
         """
 
         with self.connection.cursor() as cursor:
-
             cursor.execute(
                 query,
                 (
@@ -77,9 +74,136 @@ class DatabaseService:
                 ),
             )
 
-        logger.info(
-            f"[DOCUMENT CREATED] {workflow_id}"
+        logger.info(f"[DOCUMENT CREATED] {workflow_id}")
+
+    # =====================================================
+    # Create Upload History
+    # =====================================================
+
+    def create_upload_history(
+        self,
+        workflow_id: str,
+        folder: str,
+        filename: str,
+        file_size: int = None,
+        mime_type: str = None,
+    ):
+
+        query = """
+        INSERT INTO upload_history
+        (
+            workflow_id,
+            folder,
+            filename,
+            file_size,
+            mime_type,
+            status,
+            current_stage,
+            progress
         )
+        VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
+        """
+
+        with self.connection.cursor() as cursor:
+            cursor.execute(
+                query,
+                (
+                    workflow_id,
+                    folder,
+                    filename,
+                    file_size,
+                    mime_type,
+                    "RUNNING",
+                    "UPLOADING",
+                    0,
+                ),
+            )
+
+        logger.info(f"[UPLOAD HISTORY CREATED] {workflow_id}")
+
+    # =====================================================
+    # Update Upload History
+    # =====================================================
+
+    def update_upload_history(
+        self,
+        workflow_id: str,
+        status: str,
+        current_stage: str,
+        progress: int,
+        error: str = None,
+        completed_at=None,
+    ):
+
+        query = """
+        UPDATE upload_history
+        SET
+            status = %s,
+            current_stage = %s,
+            progress = %s,
+            error = %s,
+            completed_at = %s
+        WHERE workflow_id = %s
+        """
+
+        with self.connection.cursor() as cursor:
+            cursor.execute(
+                query,
+                (
+                    status,
+                    current_stage,
+                    progress,
+                    error,
+                    completed_at,
+                    workflow_id,
+                ),
+            )
+
+            if cursor.rowcount == 0:
+                logger.warning(
+                    f"[UPLOAD HISTORY NOT FOUND] {workflow_id}"
+                )
+                return
+
+        logger.info(
+            f"[UPLOAD HISTORY UPDATED] "
+            f"{workflow_id} - {status} - {progress}%"
+        )
+
+    # =====================================================
+    # Get All Upload History
+    # =====================================================
+
+    def get_upload_history(self):
+
+        query = """
+        SELECT *
+        FROM upload_history
+        ORDER BY created_at DESC
+        """
+
+        with self.connection.cursor() as cursor:
+            cursor.execute(query)
+            return cursor.fetchall()
+
+    # =====================================================
+    # Get One Upload History Record
+    # =====================================================
+
+    def get_upload_history_by_workflow(
+        self,
+        workflow_id: str,
+    ):
+
+        query = """
+        SELECT *
+        FROM upload_history
+        WHERE workflow_id = %s
+        """
+
+        with self.connection.cursor() as cursor:
+            cursor.execute(query, (workflow_id,))
+            return cursor.fetchone()
 
     # =====================================================
     # Update Translation
@@ -103,7 +227,6 @@ class DatabaseService:
         """
 
         with self.connection.cursor() as cursor:
-
             cursor.execute(
                 query,
                 (
@@ -114,18 +237,13 @@ class DatabaseService:
                 ),
             )
 
-        logger.info(
-            f"[DOCUMENT UPDATED] {workflow_id}"
-        )
+        logger.info(f"[DOCUMENT UPDATED] {workflow_id}")
 
     # =====================================================
     # Get Document
     # =====================================================
 
-    def get_document(
-        self,
-        workflow_id: str,
-    ):
+    def get_document(self, workflow_id: str):
 
         query = """
         SELECT *
@@ -134,24 +252,14 @@ class DatabaseService:
         """
 
         with self.connection.cursor() as cursor:
-
-            cursor.execute(
-                query,
-                (
-                    workflow_id,
-                ),
-            )
-
+            cursor.execute(query, (workflow_id,))
             return cursor.fetchone()
 
     # =====================================================
     # Delete Document
     # =====================================================
 
-    def delete_document(
-        self,
-        workflow_id: str,
-    ):
+    def delete_document(self, workflow_id: str):
 
         query = """
         DELETE FROM documents
@@ -159,49 +267,53 @@ class DatabaseService:
         """
 
         with self.connection.cursor() as cursor:
+            cursor.execute(query, (workflow_id,))
 
-            cursor.execute(
-                query,
-                (
-                    workflow_id,
-                ),
-            )
-        
-        logger.info(
-            f"[DOCUMENT DELETED] {workflow_id}"
-        )
+        logger.info(f"[DOCUMENT DELETED] {workflow_id}")
 
-    def get_document_by_filename(self,original_filename: str, folder: str):
+    # =====================================================
+    # Get Document By Filename
+    # =====================================================
+
+    def get_document_by_filename(
+        self,
+        original_filename: str,
+        folder: str,
+    ):
+
         query = """
-            SELECT
-                id,
-                workflow_id,
-                folder,
-                original_filename,
-                stored_filename,
-                file_extension,
-                mime_type,
-                file_size
-            FROM documents
-            WHERE original_filename = %s AND folder = %s
-            LIMIT 1
+        SELECT
+            id,
+            workflow_id,
+            folder,
+            original_filename,
+            stored_filename,
+            file_extension,
+            mime_type,
+            file_size
+        FROM documents
+        WHERE original_filename = %s
+          AND folder = %s
+        LIMIT 1
         """
 
-        with self.connection.cursor() as cursor: 
+        with self.connection.cursor() as cursor:
             cursor.execute(query, (original_filename, folder))
             row = cursor.fetchone()
+
         if not row:
             return None
+
         return {
-                "id": row[0],
-                "workflow_id": row[1],
-                "folder": row[2],
-                "original_filename": row[3],
-                "stored_filename": row[4],
-                "file_extension": row[5],
-                "mime_type": row[6],
-                "file_size": row[7],
-            }
+            "id": row["id"],
+            "workflow_id": row["workflow_id"],
+            "folder": row["folder"],
+            "original_filename": row["original_filename"],
+            "stored_filename": row["stored_filename"],
+            "file_extension": row["file_extension"],
+            "mime_type": row["mime_type"],
+            "file_size": row["file_size"],
+        }
 
     # =====================================================
     # Get All Documents
@@ -216,9 +328,8 @@ class DatabaseService:
         """
 
         with self.connection.cursor() as cursor:
-
             cursor.execute(query)
-
             return cursor.fetchall()
-        
+
+
 database_service = DatabaseService()

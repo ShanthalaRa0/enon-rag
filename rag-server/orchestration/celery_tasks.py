@@ -35,6 +35,40 @@ logger = logging.getLogger(__name__)
 
 
 # =========================================================
+# Record Final Workflow Failure
+# =========================================================
+
+def record_workflow_failure(
+    workflow_id: str,
+    stage: str,
+    progress: int,
+    error: str,
+):
+    """
+    Save final workflow failure to Redis and PostgreSQL.
+    """
+
+    try:
+        update_pipeline_status(
+            workflow_id=workflow_id,
+            status="FAILED",
+            stage=stage,
+            progress=progress,
+            error=error,
+        )
+
+        logger.info(
+            f"[WORKFLOW FAILURE RECORDED] {workflow_id}"
+        )
+
+    except Exception:
+        logger.exception(
+            f"[WORKFLOW FAILURE RECORDING FAILED] {workflow_id}"
+        )
+
+
+
+# =========================================================
 # Celery App
 # =========================================================
 
@@ -147,6 +181,16 @@ def extract_document_task(
                 stage=WorkflowStage.EXTRACTING,
                 progress=25,
                 error=str(e),
+            )
+            record_workflow_failure(
+                workflow_id=workflow_id,
+                stage=WorkflowStage.EXTRACTING,
+                progress=25,
+                error=str(e),
+            )
+
+            cleanup_failed_workflow(
+                workflow_id=workflow_id
             )
 
             raise
@@ -336,6 +380,14 @@ def chunk_document_task(
                 f"{workflow_id}"
             )
 
+            record_workflow_failure(
+                workflow_id=workflow_id,
+                stage=WorkflowStage.CHUNKING,
+                progress=70,
+                error=str(e),
+            )
+
+
             cleanup_failed_workflow(
                 workflow_id=workflow_id
             )
@@ -450,6 +502,13 @@ def translate_document_task(
                 f"{workflow_id}"
             )
 
+            record_workflow_failure(
+                workflow_id=workflow_id,
+                stage=WorkflowStage.TRANSLATING,
+                progress=50,
+                error=str(e),
+            )
+
             cleanup_failed_workflow(
                 workflow_id=workflow_id
             )
@@ -552,6 +611,13 @@ def generate_embeddings_task(
             logger.error(
                 f"[EMBEDDING FINAL FAILURE] "
                 f"{workflow_id}"
+            )
+
+            record_workflow_failure(
+                workflow_id=workflow_id,
+                stage=WorkflowStage.EMBEDDING,
+                progress=80,
+                error=str(e),
             )
 
             cleanup_failed_workflow(
@@ -658,6 +724,13 @@ def store_vectors_task(
             logger.error(
                 f"[VECTOR STORE FINAL FAILURE] "
                 f"{workflow_id}"
+            )
+
+            record_workflow_failure(
+                workflow_id=workflow_id,
+                stage=WorkflowStage.STORING,
+                progress=90,
+                error=str(e),
             )
 
             cleanup_failed_workflow(
